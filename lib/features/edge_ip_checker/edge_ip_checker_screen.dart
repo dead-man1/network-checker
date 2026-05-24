@@ -309,47 +309,64 @@ class _EdgeIpCheckerScreenState extends State<EdgeIpCheckerScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Header
-          Row(
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Enter IP addresses or CIDR ranges',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: colorScheme.onSurface,
-                      ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Enter IP addresses or CIDR ranges',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'One IP or range per line',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'One IP or range per line',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: colorScheme.onSurfaceVariant,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              FilledButton.tonalIcon(
-                onPressed: () {
-                  _inputController.text = cloudflareIpRanges;
-                  controller.updateInput(cloudflareIpRanges);
-                },
-                icon: const Icon(Icons.cloud_outlined, size: 18),
-                label: const Text('Load CF IPs'),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  FilledButton.tonalIcon(
+                    onPressed: () {
+                      _inputController.text = cloudflareIpRanges;
+                      controller.updateInput(cloudflareIpRanges);
+                      controller.updateConfig(testDomain: 'chatgpt.com');
+                    },
+                    icon: const Icon(Icons.cloud_outlined, size: 18),
+                    label: const Text('Load CF IPs'),
+                  ),
+                  FilledButton.tonalIcon(
+                    onPressed: () {
+                      _inputController.text = vercelIpRanges;
+                      controller.updateInput(vercelIpRanges);
+                      controller.updateConfig(testDomain: 'vercel.com');
+                    },
+                    icon: const Icon(Icons.bolt, size: 18),
+                    label: const Text('Load Vercel IPs'),
+                  ),
+                  if (controller.parsedIpCount > 0)
+                    IconButton.filledTonal(
+                      onPressed: () => _shuffleInputLines(_inputController, controller),
+                      icon: const Icon(Icons.shuffle, size: 20),
+                      tooltip: 'Shuffle ranges',
+                    ),
+                ],
               ),
-              if (controller.parsedIpCount > 0) ...[  
-                const SizedBox(width: 8),
-                IconButton.filledTonal(
-                  onPressed: () => _shuffleInputLines(_inputController, controller),
-                  icon: const Icon(Icons.shuffle, size: 20),
-                  tooltip: 'Shuffle ranges',
-                ),
-              ],
             ],
           ),
           const SizedBox(height: 16),
@@ -740,26 +757,43 @@ class _EdgeIpCheckerScreenState extends State<EdgeIpCheckerScreen> {
                   const SizedBox(height: 16),
 
                   // Title row with load button
-                  Row(
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Expanded(
-                        child: Text(
-                          'Edit IP Addresses',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
+                      Text(
+                        'Edit IP Addresses',
+                        style: Theme.of(context).textTheme.titleLarge,
                       ),
-                      FilledButton.tonalIcon(
-                        onPressed: () {
-                          textController.text = cloudflareIpRanges;
-                        },
-                        icon: const Icon(Icons.cloud_outlined, size: 18),
-                        label: const Text('Load CF IPs'),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton.filledTonal(
-                        onPressed: () => _shuffleInputLines(textController, controller),
-                        icon: const Icon(Icons.shuffle, size: 20),
-                        tooltip: 'Shuffle ranges',
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          FilledButton.tonalIcon(
+                            onPressed: () {
+                              textController.text = cloudflareIpRanges;
+                              controller.updateConfig(testDomain: 'chatgpt.com');
+                            },
+                            icon: const Icon(Icons.cloud_outlined, size: 18),
+                            label: const Text('Load CF IPs'),
+                          ),
+                          FilledButton.tonalIcon(
+                            onPressed: () {
+                              textController.text = vercelIpRanges;
+                              controller.updateConfig(testDomain: 'vercel.com');
+                            },
+                            icon: const Icon(Icons.bolt, size: 18),
+                            label: const Text('Load Vercel IPs'),
+                          ),
+                          IconButton.filledTonal(
+                            onPressed: () => _shuffleInputLines(textController, controller),
+                            icon: const Icon(Icons.shuffle, size: 20),
+                            tooltip: 'Shuffle ranges',
+                          ),
+                        ],
                       ),
                     ],
                   ),
