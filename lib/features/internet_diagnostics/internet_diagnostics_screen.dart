@@ -244,7 +244,7 @@ class InternetDiagnosticsScreen extends StatelessWidget {
                       _DiagnosticCheckCard(
                             title: 'Domestic IP Discovery',
                             description:
-                                'Queries domestic CDN edge (ArvanCloud/Chabokan)',
+                                'Queries domestic CDN edge (Chabokan)',
                             iconData: Icons.location_on_rounded,
                             isPending:
                                 controller.isIdle ||

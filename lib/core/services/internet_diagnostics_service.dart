@@ -503,10 +503,7 @@ class InternetDiagnosticsService {
         final response = await http.get(Uri.parse(url)).timeout(timeoutLimit);
         if (response.statusCode == 200) {
           String body = response.body.trim();
-          if (url.contains('napi.arvancloud.ir')) {
-            final data = jsonDecode(body) as Map<String, dynamic>;
-            retrievedIp = data['ip'] as String?;
-          } else if (url.contains('chabokan.net')) {
+        if (url.contains('chabokan.net')) {
             final data = jsonDecode(body) as Map<String, dynamic>;
             retrievedIp = (data['ipaddress'] ?? data['ip']) as String?;
           } else {
