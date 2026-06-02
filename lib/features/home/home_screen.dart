@@ -18,6 +18,7 @@ import '../vless_config_modifier/vless_config_modifier_screen.dart';
 import '../netlify_generator/netlify_generator_screen.dart';
 import '../akamai_scan/akamai_scan_screen.dart';
 import '../sni_spoof_check/sni_spoof_check_screen.dart';
+import '../internet_diagnostics/internet_diagnostics_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -107,6 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Mobile & Desktop: same screen list (drawer on mobile, rail on desktop)
   List<Widget> get _screens => [
+    const InternetDiagnosticsScreen(),
     const DomainCheckerScreen(),
     const DnsScannerScreen(),
     const DnsHunterScreen(),
@@ -123,6 +125,11 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Widget> get _desktopScreens => _screens;
 
   List<NavigationRailDestination> get _railDestinations => [
+    const NavigationRailDestination(
+      icon: Icon(Icons.network_ping_outlined),
+      selectedIcon: Icon(Icons.network_ping),
+      label: Text('Diagnostics'),
+    ),
     const NavigationRailDestination(
       icon: Icon(Icons.language_outlined),
       selectedIcon: Icon(Icons.language),
@@ -249,6 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     var index = 0;
     final items = <_DrawerItem>[
+      _DrawerItem(icon: Icons.network_ping, label: 'Diagnostics', index: index++),
       _DrawerItem(icon: Icons.language, label: 'Domains', index: index++),
       _DrawerItem(icon: Icons.dns, label: 'DNS', index: index++),
       _DrawerItem(icon: Icons.radar, label: 'Hunter', index: index++),

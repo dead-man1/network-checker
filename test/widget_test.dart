@@ -9,7 +9,10 @@ void main() {
     await tester.pumpWidget(const RdnbenetApp());
 
     // Verify that the app loads with navigation
-    expect(find.byType(NavigationBar), findsOneWidget);
-    expect(find.text('Domains'), findsOneWidget);
+    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.text('Diagnostics'), findsOneWidget);
+
+    // Let staggered animation timers complete
+    await tester.pump(const Duration(seconds: 2));
   });
 }
