@@ -10,6 +10,9 @@
   <a href="https://github.com/mirarr-app/network-checker/releases">
     <img src="https://img.shields.io/github/v/release/mirarr-app/network-checker?style=flat-square&color=green" alt="Latest Release">
   </a>
+  <a href="https://github.com/mirarr-app/network-checker/releases">
+    <img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/mirarr-app/network-checker/total">
+  </a>
 </p>
 
 ---
