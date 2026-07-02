@@ -125,7 +125,7 @@ class DomainCheckerScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
+        color: Colors.transparent,
         border: Border(
           bottom: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
         ),
