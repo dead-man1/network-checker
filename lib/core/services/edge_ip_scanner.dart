@@ -100,17 +100,18 @@ class EdgeIpScanner {
     final stopwatch = Stopwatch()..start();
     Socket? socket;
     SecureSocket? secureSocket;
+    final (targetIp, targetPort) = _getTargetIpAndPort(ip);
 
     try {
       socket = await Socket.connect(
-        ip,
-        config.port,
+        targetIp,
+        targetPort,
         timeout: config.timeout,
       );
     } on Exception catch (e) {
       return EdgeIpResult(
         ip: ip,
-        port: config.port,
+        port: targetPort,
         success: false,
         errorMessage: 'Connection failed: $e',
       );
@@ -128,7 +129,7 @@ class EdgeIpScanner {
       await _safeClose(socket);
       return EdgeIpResult(
         ip: ip,
-        port: config.port,
+        port: targetPort,
         success: false,
         errorMessage: 'TLS handshake failed: $e',
       );
@@ -169,7 +170,7 @@ class EdgeIpScanner {
 
         return EdgeIpResult(
           ip: ip,
-          port: config.port,
+          port: targetPort,
           success: true,
           latencyMs: latency,
           speedKbps: speedKbps,
@@ -180,28 +181,28 @@ class EdgeIpScanner {
     } on SocketException catch (e) {
       return EdgeIpResult(
         ip: ip,
-        port: config.port,
+        port: targetPort,
         success: false,
         errorMessage: e.message,
       );
     } on HandshakeException catch (e) {
       return EdgeIpResult(
         ip: ip,
-        port: config.port,
+        port: targetPort,
         success: false,
         errorMessage: 'TLS handshake failed: ${e.message}',
       );
     } on TimeoutException {
       return EdgeIpResult(
         ip: ip,
-        port: config.port,
+        port: targetPort,
         success: false,
         errorMessage: 'Connection timed out',
       );
     } catch (e) {
       return EdgeIpResult(
         ip: ip,
-        port: config.port,
+        port: targetPort,
         success: false,
         errorMessage: e.toString(),
       );
@@ -216,17 +217,18 @@ class EdgeIpScanner {
     final stopwatch = Stopwatch()..start();
     Socket? socket;
     SecureSocket? secureSocket;
+    final (targetIp, targetPort) = _getTargetIpAndPort(ip);
 
     try {
       socket = await Socket.connect(
-        ip,
-        config.port,
+        targetIp,
+        targetPort,
         timeout: config.timeout,
       );
     } on Exception catch (e) {
       return EdgeIpResult(
         ip: ip,
-        port: config.port,
+        port: targetPort,
         success: false,
         errorMessage: 'Connection failed: $e',
       );
@@ -244,7 +246,7 @@ class EdgeIpScanner {
       await _safeClose(socket);
       return EdgeIpResult(
         ip: ip,
-        port: config.port,
+        port: targetPort,
         success: false,
         errorMessage: 'TLS handshake failed: $e',
       );
@@ -256,35 +258,35 @@ class EdgeIpScanner {
 
       return EdgeIpResult(
         ip: ip,
-        port: config.port,
+        port: targetPort,
         success: true,
         latencyMs: latency,
       );
     } on SocketException catch (e) {
       return EdgeIpResult(
         ip: ip,
-        port: config.port,
+        port: targetPort,
         success: false,
         errorMessage: e.message,
       );
     } on HandshakeException catch (e) {
       return EdgeIpResult(
         ip: ip,
-        port: config.port,
+        port: targetPort,
         success: false,
         errorMessage: 'TLS handshake failed: ${e.message}',
       );
     } on TimeoutException {
       return EdgeIpResult(
         ip: ip,
-        port: config.port,
+        port: targetPort,
         success: false,
         errorMessage: 'Connection timed out',
       );
     } catch (e) {
       return EdgeIpResult(
         ip: ip,
-        port: config.port,
+        port: targetPort,
         success: false,
         errorMessage: e.toString(),
       );
@@ -303,8 +305,19 @@ class EdgeIpScanner {
     }
   }
 
+  /// Extract the destination IP and port from an input string
+  (String, int) _getTargetIpAndPort(String ip) {
+    final colonIdx = ip.indexOf(':');
+    if (colonIdx != -1) {
+      final targetIp = ip.substring(0, colonIdx);
+      final targetPort = int.tryParse(ip.substring(colonIdx + 1)) ?? config.port;
+      return (targetIp, targetPort);
+    }
+    return (ip, config.port);
+  }
+
   /// Parse IP ranges and individual IPs from input text
-  /// Supports: CIDR notation (e.g., 104.18.0.0/20) and individual IPs
+  /// Supports: CIDR notation (e.g., 104.18.0.0/20), individual IPs, and individual IPs with custom ports (e.g., 1.1.1.1:8443)
   static List<String> parseIpInput(String input) {
     final ips = <String>[];
     final lines = input.split('\n');
@@ -321,9 +334,19 @@ class EdgeIpScanner {
           // Skip invalid subnet
         }
       } else {
-        // Single IP
-        if (_isValidIp(line)) {
-          ips.add(line);
+        // Single IP or Single IP with port
+        final colonIdx = line.indexOf(':');
+        if (colonIdx != -1) {
+          final ipPart = line.substring(0, colonIdx);
+          final portPart = line.substring(colonIdx + 1);
+          final port = int.tryParse(portPart);
+          if (port != null && port > 0 && port <= 65535 && _isValidIp(ipPart)) {
+            ips.add(line);
+          }
+        } else {
+          if (_isValidIp(line)) {
+            ips.add(line);
+          }
         }
       }
     }
