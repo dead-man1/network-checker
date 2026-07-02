@@ -199,15 +199,44 @@ class DomainCheckerScreen extends StatelessWidget {
   }
 
   Widget _buildNewPresetButton(BuildContext context, DomainCheckerController controller) {
-    return OutlinedButton.icon(
-      onPressed: () => _showCreatePresetDialog(context, controller),
-      icon: const Icon(Icons.add, size: 16),
-      label: const Text('New Preset', style: TextStyle(fontSize: 12)),
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        minimumSize: Size.zero,
-        shape: RoundedRectangleBorder(
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
           borderRadius: BorderRadius.circular(20),
+          onTap: () => _showCreatePresetDialog(context, controller),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: colorScheme.primary.withValues(alpha: 0.4),
+                width: 1.2,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.add_circle_outline,
+                  size: 15,
+                  color: colorScheme.primary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'New Preset',
+                  style: TextStyle(
+                    color: colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -221,15 +250,15 @@ class DomainCheckerScreen extends StatelessWidget {
     final isEditMode = controller.isEditMode;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: isEditMode 
-            ? colorScheme.errorContainer.withValues(alpha: 0.15) 
+            ? colorScheme.errorContainer.withValues(alpha: 0.12) 
             : colorScheme.surfaceContainer,
         border: Border(
           bottom: BorderSide(
             color: isEditMode 
-                ? colorScheme.error.withValues(alpha: 0.3) 
+                ? colorScheme.error.withValues(alpha: 0.25) 
                 : colorScheme.outlineVariant.withValues(alpha: 0.2),
           ),
         ),
@@ -255,36 +284,98 @@ class DomainCheckerScreen extends StatelessWidget {
             ),
           ),
           if (isEditMode) ...[
-            TextButton.icon(
-              onPressed: () => _showDeleteAllDomainsDialog(context, controller, preset),
-              icon: Icon(Icons.delete_sweep, size: 16, color: colorScheme.error),
-              label: Text('Delete All', style: TextStyle(color: colorScheme.error, fontSize: 12)),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                minimumSize: Size.zero,
+            // Delete All Button (Soft tinted pill)
+            Material(
+              color: colorScheme.error.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => _showDeleteAllDomainsDialog(context, controller, preset),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.delete_sweep,
+                        size: 16,
+                        color: colorScheme.error,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Delete All',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.error,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 8),
-            FilledButton.icon(
-              onPressed: () => controller.setEditMode(false),
-              icon: const Icon(Icons.check, size: 16),
-              label: const Text('Done', style: TextStyle(fontSize: 12)),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                minimumSize: Size.zero,
-                visualDensity: VisualDensity.compact,
+            // Done Button (Filled primary pill)
+            Material(
+              color: colorScheme.primary,
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => controller.setEditMode(false),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.check,
+                        size: 16,
+                        color: colorScheme.onPrimary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Done',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ] else ...[
-            OutlinedButton.icon(
-              onPressed: () => controller.setEditMode(true),
-              icon: const Icon(Icons.edit_note, size: 16),
-              label: const Text('Edit List', style: TextStyle(fontSize: 12)),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                minimumSize: Size.zero,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+            // Edit List Button (Soft tinted primary pill)
+            Material(
+              color: colorScheme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => controller.setEditMode(true),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.edit_note,
+                        size: 16,
+                        color: colorScheme.primary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Edit List',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
