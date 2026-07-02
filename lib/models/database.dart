@@ -8,10 +8,19 @@ class DomainEntries extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get url => text().withLength(min: 1, max: 500)();
   BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
+  IntColumn get presetId => integer().nullable().references(Presets, #id, onDelete: KeyAction.cascade)();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
-@DriftDatabase(tables: [DomainEntries])
+/// Table for storing domain presets
+class Presets extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text().withLength(min: 1, max: 100)();
+  BoolColumn get isSystem => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+@DriftDatabase(tables: [DomainEntries, Presets])
 class AppDatabase extends _$AppDatabase {
   AppDatabase._() : super(_openConnection());
 
@@ -23,7 +32,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration {
@@ -37,12 +46,35 @@ class AppDatabase extends _$AppDatabase {
           await customStatement('DROP TABLE IF EXISTS check_results');
           await customStatement('DROP TABLE IF EXISTS check_sessions');
         }
+        if (from < 3) {
+          await m.createTable(presets);
+          await m.addColumn(domainEntries, domainEntries.presetId);
+        }
+      },
+      beforeOpen: (details) async {
+        // Seed default preset and link unassociated domain entries to default preset
+        final defaultPreset = await _getDefaultPresetInternal();
+        await (update(domainEntries)..where((d) => d.presetId.isNull())).write(
+          DomainEntriesCompanion(presetId: Value(defaultPreset.id)),
+        );
       },
     );
   }
 
   static QueryExecutor _openConnection() {
     return driftDatabase(name: 'rdnbenet_db');
+  }
+
+  Future<Preset> _getDefaultPresetInternal() async {
+    final defaultPreset = await (select(presets)..where((p) => p.isSystem.equals(true) & p.name.equals('Default'))).getSingleOrNull();
+    if (defaultPreset != null) {
+      return defaultPreset;
+    }
+    final id = await into(presets).insert(PresetsCompanion.insert(
+      name: 'Default',
+      isSystem: const Value(true),
+    ));
+    return (select(presets)..where((p) => p.id.equals(id))).getSingle();
   }
 
   // Domain Entry Operations
@@ -73,5 +105,34 @@ class AppDatabase extends _$AppDatabase {
     final query = select(domainEntries)..where((d) => d.url.equals(url));
     final result = await query.getSingleOrNull();
     return result != null;
+  }
+
+  // Preset Operations
+  Future<List<Preset>> getAllPresets() => select(presets).get();
+
+  Future<Preset> getDefaultPreset() => _getDefaultPresetInternal();
+
+  Future<int> insertPreset(PresetsCompanion entry) => into(presets).insert(entry);
+
+  Future<int> deletePreset(int id) => (delete(presets)..where((p) => p.id.equals(id))).go();
+
+  Future<bool> updatePresetName(int id, String name) async {
+    final count = await (update(presets)..where((p) => p.id.equals(id))).write(
+      PresetsCompanion(name: Value(name)),
+    );
+    return count > 0;
+  }
+
+  Future<List<DomainEntry>> getDomainsByPreset(int presetId) =>
+      (select(domainEntries)..where((d) => d.presetId.equals(presetId))).get();
+
+  Future<int> deleteDomainsByPreset(int presetId) =>
+      (delete(domainEntries)..where((d) => d.presetId.equals(presetId))).go();
+
+  Future<void> resetDatabase() async {
+    await transaction(() async {
+      await delete(domainEntries).go();
+      await (delete(presets)..where((p) => p.isSystem.equals(false))).go();
+    });
   }
 }
