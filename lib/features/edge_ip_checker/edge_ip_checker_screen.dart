@@ -741,194 +741,14 @@ class _EdgeIpCheckerScreenState extends State<EdgeIpCheckerScreen> {
   }
 
   void _showInputDialog(BuildContext context, EdgeIpCheckerController controller) {
-    final textController = TextEditingController(text: controller.inputText);
-    int dialogParsedIpCount = controller.parsedIpCount;
-    Timer? dialogDebounceTimer;
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return DraggableScrollableSheet(
-              initialChildSize: 0.7,
-              minChildSize: 0.5,
-              maxChildSize: 0.95,
-              expand: false,
-              builder: (context, scrollController) {
-                return Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Handle
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.outlineVariant,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Title row with load button
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        alignment: WrapAlignment.spaceBetween,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Text(
-                            'Edit IP Addresses',
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              FilledButton.tonalIcon(
-                                onPressed: () {
-                                  textController.text = cloudflareIpRanges;
-                                  controller.updateConfig(testDomain: 'chatgpt.com');
-                                  dialogDebounceTimer?.cancel();
-                                  setDialogState(() {
-                                    dialogParsedIpCount = EdgeIpScanner.parseIpInput(cloudflareIpRanges).length;
-                                  });
-                                },
-                                icon: const Icon(Icons.cloud_outlined, size: 18),
-                                label: const Text('Load CF IPs'),
-                              ),
-                              FilledButton.tonalIcon(
-                                onPressed: () {
-                                  textController.text = vercelIpRanges;
-                                  controller.updateConfig(testDomain: 'vercel.com');
-                                  dialogDebounceTimer?.cancel();
-                                  setDialogState(() {
-                                    dialogParsedIpCount = EdgeIpScanner.parseIpInput(vercelIpRanges).length;
-                                  });
-                                },
-                                icon: const Icon(Icons.bolt, size: 18),
-                                label: const Text('Load Vercel IPs'),
-                              ),
-                              IconButton.filledTonal(
-                                onPressed: () {
-                                  final lines = textController.text.split('\n').where((l) => l.trim().isNotEmpty).toList();
-                                  if (lines.length <= 1) return;
-                                  lines.shuffle();
-                                  final shuffled = lines.join('\n');
-                                  textController.text = shuffled;
-                                  dialogDebounceTimer?.cancel();
-                                  setDialogState(() {
-                                    dialogParsedIpCount = EdgeIpScanner.parseIpInput(shuffled).length;
-                                  });
-                                },
-                                icon: const Icon(Icons.shuffle, size: 20),
-                                tooltip: 'Shuffle ranges',
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Input field
-                      Expanded(
-                        child: TextField(
-                          controller: textController,
-                          maxLines: null,
-                          expands: true,
-                          textAlignVertical: TextAlignVertical.top,
-                          decoration: InputDecoration(
-                            hintText: 'One IP or CIDR range per line...',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          style: const TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 14,
-                          ),
-                          onChanged: (text) {
-                            dialogDebounceTimer?.cancel();
-                            dialogDebounceTimer = Timer(const Duration(milliseconds: 3000), () {
-                              setDialogState(() {
-                                dialogParsedIpCount = EdgeIpScanner.parseIpInput(text).length;
-                              });
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Info row
-                      if (dialogParsedIpCount > 0)
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.info_outline, color: Theme.of(context).colorScheme.primary, size: 20),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Parsed $dialogParsedIpCount IP addresses',
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.primary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                      // Action buttons
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () {
-                                controller.clearAll();
-                                Navigator.pop(context);
-                              },
-                              child: const Text('Clear All'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 2,
-                            child: FilledButton(
-                              onPressed: () {
-                                controller.updateInput(textController.text);
-                                Navigator.pop(context);
-                              },
-                              child: const Text('Update'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
-        );
+        return _IpInputDialog(controller: controller);
       },
-    ).then((_) {
-      dialogDebounceTimer?.cancel();
-      textController.dispose();
-    });
+    );
   }
 
   void _showSettingsDialog(BuildContext context) {
@@ -1301,6 +1121,209 @@ class _SettingsDialogState extends State<_SettingsDialog> {
           child: const Text('Save'),
         ),
       ],
+    );
+  }
+}
+
+class _IpInputDialog extends StatefulWidget {
+  final EdgeIpCheckerController controller;
+
+  const _IpInputDialog({required this.controller});
+
+  @override
+  State<_IpInputDialog> createState() => _IpInputDialogState();
+}
+
+class _IpInputDialogState extends State<_IpInputDialog> {
+  late TextEditingController _textController;
+  late int _dialogParsedIpCount;
+  Timer? _dialogDebounceTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _textController = TextEditingController(text: widget.controller.inputText);
+    _dialogParsedIpCount = widget.controller.parsedIpCount;
+  }
+
+  @override
+  void dispose() {
+    _dialogDebounceTimer?.cancel();
+    _textController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollController) {
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Title row with load button
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    'Edit IP Addresses',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      FilledButton.tonalIcon(
+                        onPressed: () {
+                          _textController.text = cloudflareIpRanges;
+                          widget.controller.updateConfig(testDomain: 'chatgpt.com');
+                          _dialogDebounceTimer?.cancel();
+                          setState(() {
+                            _dialogParsedIpCount = EdgeIpScanner.parseIpInput(cloudflareIpRanges).length;
+                          });
+                        },
+                        icon: const Icon(Icons.cloud_outlined, size: 18),
+                        label: const Text('Load CF IPs'),
+                      ),
+                      FilledButton.tonalIcon(
+                        onPressed: () {
+                          _textController.text = vercelIpRanges;
+                          widget.controller.updateConfig(testDomain: 'vercel.com');
+                          _dialogDebounceTimer?.cancel();
+                          setState(() {
+                            _dialogParsedIpCount = EdgeIpScanner.parseIpInput(vercelIpRanges).length;
+                          });
+                        },
+                        icon: const Icon(Icons.bolt, size: 18),
+                        label: const Text('Load Vercel IPs'),
+                      ),
+                      IconButton.filledTonal(
+                        onPressed: () {
+                          final lines = _textController.text.split('\n').where((l) => l.trim().isNotEmpty).toList();
+                          if (lines.length <= 1) return;
+                          lines.shuffle();
+                          final shuffled = lines.join('\n');
+                          _textController.text = shuffled;
+                          _dialogDebounceTimer?.cancel();
+                          setState(() {
+                            _dialogParsedIpCount = EdgeIpScanner.parseIpInput(shuffled).length;
+                          });
+                        },
+                        icon: const Icon(Icons.shuffle, size: 20),
+                        tooltip: 'Shuffle ranges',
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Input field
+              Expanded(
+                child: TextField(
+                  controller: _textController,
+                  maxLines: null,
+                  expands: true,
+                  textAlignVertical: TextAlignVertical.top,
+                  decoration: InputDecoration(
+                    hintText: 'One IP or CIDR range per line...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 14,
+                  ),
+                  onChanged: (text) {
+                    _dialogDebounceTimer?.cancel();
+                    _dialogDebounceTimer = Timer(const Duration(milliseconds: 3000), () {
+                      setState(() {
+                        _dialogParsedIpCount = EdgeIpScanner.parseIpInput(text).length;
+                      });
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Info row
+              if (_dialogParsedIpCount > 0)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Theme.of(context).colorScheme.primary, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Parsed $_dialogParsedIpCount IP addresses',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Action buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        widget.controller.clearAll();
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Clear All'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: FilledButton(
+                      onPressed: () {
+                        widget.controller.updateInput(_textController.text);
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Update'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
