@@ -6,6 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../models/database.dart' show Preset;
 import 'domain_checker_controller.dart';
 
 class DomainCheckerScreen extends StatelessWidget {
@@ -49,6 +50,12 @@ class DomainCheckerScreen extends StatelessWidget {
                       tooltip: 'Reset results',
                       onPressed: controller.resetResults,
                     ),
+                  if (!controller.isChecking)
+                    IconButton(
+                      icon: const Icon(Icons.restart_alt),
+                      tooltip: 'Reset database',
+                      onPressed: () => _showResetDatabaseDialog(context, controller),
+                    ),
                 ],
               );
             },
@@ -65,6 +72,12 @@ class DomainCheckerScreen extends StatelessWidget {
 
           return Column(
             children: [
+              // Presets Row
+              _buildPresetsBar(context, controller),
+              
+              // Preset Action Bar (edit mode toggle)
+              _buildPresetActionBar(context, controller),
+
               // Progress and stats bar
               if (controller.isChecking || controller.checkedCount > 0)
                 _buildProgressBar(context, controller),
@@ -104,6 +117,347 @@ class DomainCheckerScreen extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildPresetsBar(BuildContext context, DomainCheckerController controller) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        border: Border(
+          bottom: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+        ),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            Icon(Icons.folder_special, size: 20, color: colorScheme.primary),
+            const SizedBox(width: 12),
+            ...controller.presets.map((preset) => _buildPresetChip(context, controller, preset)),
+            _buildNewPresetButton(context, controller),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPresetChip(BuildContext context, DomainCheckerController controller, Preset preset) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isActive = controller.activePreset?.id == preset.id;
+    
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      margin: const EdgeInsets.only(right: 8),
+      child: Material(
+        color: isActive ? colorScheme.primaryContainer : colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => controller.selectPreset(preset),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  preset.name,
+                  style: TextStyle(
+                    color: isActive ? colorScheme.onPrimaryContainer : colorScheme.onSurfaceVariant,
+                    fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 13,
+                  ),
+                ),
+                if (isActive && !preset.isSystem) ...[
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => _showEditPresetNameDialog(context, controller, preset),
+                    child: Icon(
+                      Icons.edit,
+                      size: 14,
+                      color: colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => _showDeletePresetDialog(context, controller, preset),
+                    child: Icon(
+                      Icons.delete,
+                      size: 14,
+                      color: colorScheme.error,
+                    ),
+                  ),
+                ]
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNewPresetButton(BuildContext context, DomainCheckerController controller) {
+    return OutlinedButton.icon(
+      onPressed: () => _showCreatePresetDialog(context, controller),
+      icon: const Icon(Icons.add, size: 16),
+      label: const Text('New Preset', style: TextStyle(fontSize: 12)),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        minimumSize: Size.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPresetActionBar(BuildContext context, DomainCheckerController controller) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final preset = controller.activePreset;
+    if (preset == null) return const SizedBox.shrink();
+
+    final isEditMode = controller.isEditMode;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: isEditMode 
+            ? colorScheme.errorContainer.withValues(alpha: 0.15) 
+            : colorScheme.surfaceContainer,
+        border: Border(
+          bottom: BorderSide(
+            color: isEditMode 
+                ? colorScheme.error.withValues(alpha: 0.3) 
+                : colorScheme.outlineVariant.withValues(alpha: 0.2),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isEditMode ? Icons.edit_attributes : Icons.settings_ethernet,
+            size: 18,
+            color: isEditMode ? colorScheme.error : colorScheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              isEditMode 
+                  ? 'Edit Mode: Tap domains to delete' 
+                  : '${preset.name} Preset (${controller.totalCount} domains)',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: isEditMode ? colorScheme.error : colorScheme.onSurface,
+              ),
+            ),
+          ),
+          if (isEditMode) ...[
+            TextButton.icon(
+              onPressed: () => _showDeleteAllDomainsDialog(context, controller, preset),
+              icon: Icon(Icons.delete_sweep, size: 16, color: colorScheme.error),
+              label: Text('Delete All', style: TextStyle(color: colorScheme.error, fontSize: 12)),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: Size.zero,
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed: () => controller.setEditMode(false),
+              icon: const Icon(Icons.check, size: 16),
+              label: const Text('Done', style: TextStyle(fontSize: 12)),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                minimumSize: Size.zero,
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          ] else ...[
+            OutlinedButton.icon(
+              onPressed: () => controller.setEditMode(true),
+              icon: const Icon(Icons.edit_note, size: 16),
+              label: const Text('Edit List', style: TextStyle(fontSize: 12)),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                minimumSize: Size.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showResetDatabaseDialog(BuildContext context, DomainCheckerController controller) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Reset Database'),
+          content: const Text(
+            'This will delete all custom presets and domains, and restore default domains. Are you sure you want to proceed?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await controller.resetDatabase();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Database reset successfully'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Reset'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showCreatePresetDialog(BuildContext context, DomainCheckerController controller) {
+    final textController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Create Preset'),
+          content: TextField(
+            controller: textController,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'Preset Name (e.g. Cloudflare)',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final name = textController.text.trim();
+                if (name.isNotEmpty) {
+                  await controller.createPreset(name);
+                  if (context.mounted) Navigator.of(context).pop();
+                }
+              },
+              child: const Text('Create'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEditPresetNameDialog(BuildContext context, DomainCheckerController controller, Preset preset) {
+    final textController = TextEditingController(text: preset.name);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Rename Preset'),
+          content: TextField(
+            controller: textController,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'New Preset Name',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final name = textController.text.trim();
+                if (name.isNotEmpty) {
+                  await controller.editPresetName(preset.id, name);
+                  if (context.mounted) Navigator.of(context).pop();
+                }
+              },
+              child: const Text('Rename'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDeletePresetDialog(BuildContext context, DomainCheckerController controller, Preset preset) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete Preset'),
+          content: Text('Are you sure you want to delete the preset "${preset.name}" and all its domains?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              onPressed: () async {
+                await controller.deletePreset(preset.id);
+                if (context.mounted) Navigator.of(context).pop();
+              },
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDeleteAllDomainsDialog(BuildContext context, DomainCheckerController controller, Preset preset) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete All Domains'),
+          content: Text('Are you sure you want to delete all domains in "${preset.name}"?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              onPressed: () async {
+                await controller.deleteAllDomainsInActivePreset();
+                if (context.mounted) Navigator.of(context).pop();
+              },
+              child: const Text('Delete All'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -192,10 +546,11 @@ class DomainCheckerScreen extends StatelessWidget {
             _DomainChip(
               domain: controller.domains[i],
               index: i,
-              onTap: () => controller.checkSingle(controller.domains[i].domain),
-              onDelete: controller.domains[i].isDefault 
-                  ? null 
-                  : () => controller.removeDomain(controller.domains[i].domain),
+              isEditMode: controller.isEditMode,
+              onTap: controller.isEditMode
+                  ? () => controller.removeDomain(controller.domains[i].domain)
+                  : () => controller.checkSingle(controller.domains[i].domain),
+              onDelete: () => controller.removeDomain(controller.domains[i].domain),
             ),
         ],
       ),
@@ -221,10 +576,11 @@ class DomainCheckerScreen extends StatelessWidget {
             return _DomainGridItem(
               domain: domain,
               index: index,
-              onTap: () => controller.checkSingle(domain.domain),
-              onDelete: domain.isDefault 
-                  ? null 
-                  : () => controller.removeDomain(domain.domain),
+              isEditMode: controller.isEditMode,
+              onTap: controller.isEditMode
+                  ? () => controller.removeDomain(domain.domain)
+                  : () => controller.checkSingle(domain.domain),
+              onDelete: () => controller.removeDomain(domain.domain),
             );
           },
         );
@@ -291,12 +647,14 @@ class DomainCheckerScreen extends StatelessWidget {
 class _DomainChip extends StatelessWidget {
   final DomainCheckState domain;
   final int index;
+  final bool isEditMode;
   final VoidCallback onTap;
   final VoidCallback? onDelete;
 
   const _DomainChip({
     required this.domain,
     required this.index,
+    required this.isEditMode,
     required this.onTap,
     this.onDelete,
   });
@@ -340,7 +698,7 @@ class _DomainChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildStatusIndicator(colorScheme),
+              _buildStatusIndicator(colorScheme, isEditMode),
               const SizedBox(width: 8),
               Text(
                 domain.domain,
@@ -385,8 +743,16 @@ class _DomainChip extends StatelessWidget {
         .slideX(begin: 0.05, end: 0, delay: Duration(milliseconds: 10 * (index % 50)));
   }
 
-  Widget _buildStatusIndicator(ColorScheme colorScheme) {
+  Widget _buildStatusIndicator(ColorScheme colorScheme, bool isEditMode) {
     const double size = 16;
+    
+    if (isEditMode) {
+      return Icon(
+        Icons.remove_circle,
+        color: colorScheme.error,
+        size: size,
+      );
+    }
     
     return switch (domain.status) {
       CheckStatus.idle => Icon(
@@ -417,12 +783,14 @@ class _DomainChip extends StatelessWidget {
 class _DomainGridItem extends StatelessWidget {
   final DomainCheckState domain;
   final int index;
+  final bool isEditMode;
   final VoidCallback onTap;
   final VoidCallback? onDelete;
 
   const _DomainGridItem({
     required this.domain,
     required this.index,
+    required this.isEditMode,
     required this.onTap,
     this.onDelete,
   });
@@ -448,7 +816,7 @@ class _DomainGridItem extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildStatusIcon(colorScheme),
+              _buildStatusIcon(colorScheme, isEditMode),
               const SizedBox(height: 6),
               Text(
                 domain.domain,
@@ -481,8 +849,16 @@ class _DomainGridItem extends StatelessWidget {
         .scale(begin: const Offset(0.9, 0.9), end: const Offset(1, 1), delay: Duration(milliseconds: 15 * (index % 30)));
   }
 
-  Widget _buildStatusIcon(ColorScheme colorScheme) {
+  Widget _buildStatusIcon(ColorScheme colorScheme, bool isEditMode) {
     const double iconSize = 24;
+    
+    if (isEditMode) {
+      return Icon(
+        Icons.remove_circle,
+        color: colorScheme.error,
+        size: iconSize,
+      );
+    }
     
     return switch (domain.status) {
       CheckStatus.idle => Icon(
