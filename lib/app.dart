@@ -17,6 +17,7 @@ import 'features/netlify_generator/netlify_generator_controller.dart';
 import 'features/akamai_scan/akamai_scan_controller.dart';
 import 'features/sni_spoof_check/sni_spoof_check_controller.dart';
 import 'features/internet_diagnostics/internet_diagnostics_controller.dart';
+import 'features/chain/chain_controller.dart';
 
 class RdnbenetApp extends StatelessWidget {
   const RdnbenetApp({super.key});
@@ -30,6 +31,7 @@ class RdnbenetApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DnsHunterController()),
         ChangeNotifierProvider(create: (_) => EdgeIpCheckerController()),
         ChangeNotifierProvider(create: (_) => VlessConfigModifierController()),
+        ChangeNotifierProvider(create: (_) => ChainController()),
         ChangeNotifierProvider(create: (_) => CdnConfigScanController()),
         ChangeNotifierProvider(create: (_) => SmsEncoderController()),
         ChangeNotifierProvider(create: (_) => NetlifyGeneratorController()),
