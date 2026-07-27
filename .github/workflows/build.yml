@@ -34,8 +34,27 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      - name: Verify APK signature
-        run: jarsigner -verify -verbose -certs build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+      - name: Build APK (armeabi-v7a)
+        run: flutter build apk --release --split-per-abi --target-platform android-arm
+        env:
+          KEYSTORE_FILE: keystore.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Build Universal APK
+        run: flutter build apk --release
+        env:
+          KEYSTORE_FILE: keystore.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Verify APK signatures
+        run: |
+          jarsigner -verify -verbose -certs build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          jarsigner -verify -verbose -certs build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+          jarsigner -verify -verbose -certs build/app/outputs/flutter-apk/app-release.apk
 
       - name: List APK Directory
         run: ls -alh ${{ github.workspace }}/build/app/outputs/flutter-apk
