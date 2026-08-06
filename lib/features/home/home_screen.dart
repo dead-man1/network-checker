@@ -18,7 +18,7 @@ import '../vless_config_modifier/vless_config_modifier_screen.dart';
 import '../chain/chain_screen.dart';
 import '../netlify_generator/netlify_generator_screen.dart';
 import '../akamai_scan/akamai_scan_screen.dart';
-import '../sni_spoof_check/sni_spoof_check_screen.dart';
+import '../patt/sni_spoof_check/sni_spoof_check_screen.dart';
 import '../internet_diagnostics/internet_diagnostics_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -32,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _versionCheckDone = false;
+  final Set<String> _expandedSections = {'Patt'};
 
   @override
   void initState() {
@@ -107,7 +108,6 @@ class _HomeScreenState extends State<HomeScreen> {
   // About page: desktop and Android (via drawer)
   static final bool _showAbout = Platform.isLinux || Platform.isWindows || Platform.isMacOS || Platform.isAndroid;
 
-  // Mobile & Desktop: same screen list (drawer on mobile, rail on desktop)
   List<Widget> get _screens => [
     const InternetDiagnosticsScreen(),
     const DomainCheckerScreen(),
@@ -126,82 +126,104 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Widget> get _desktopScreens => _screens;
 
-  List<NavigationRailDestination> get _railDestinations => [
-    const NavigationRailDestination(
-      icon: Icon(Icons.network_ping_outlined),
-      selectedIcon: Icon(Icons.network_ping),
-      label: Text('Diagnostics'),
-    ),
-    const NavigationRailDestination(
-      icon: Icon(Icons.language_outlined),
-      selectedIcon: Icon(Icons.language),
-      label: Text('Domains'),
-    ),
-    const NavigationRailDestination(
-      icon: Icon(Icons.dns_outlined),
-      selectedIcon: Icon(Icons.dns),
-      label: Text('DNS'),
-    ),
-    const NavigationRailDestination(
-      icon: Icon(Icons.radar_outlined),
-      selectedIcon: Icon(Icons.radar),
-      label: Text('Hunter'),
-    ),
-    const NavigationRailDestination(
-      icon: Icon(Icons.router_outlined),
-      selectedIcon: Icon(Icons.router),
-      label: Text('Edge'),
-    ),
-    const NavigationRailDestination(
-      icon: Icon(Icons.cloud_sync_outlined),
-      selectedIcon: Icon(Icons.cloud_sync),
-      label: Text('Akamai'),
-    ),
-    const NavigationRailDestination(
-      icon: Icon(Icons.fingerprint_outlined),
-      selectedIcon: Icon(Icons.fingerprint),
-      label: Text('SNI Check'),
-    ),
-    const NavigationRailDestination(
-      icon: Icon(Icons.vpn_key_outlined),
-      selectedIcon: Icon(Icons.vpn_key),
-      label: Text('VLESS'),
-    ),
-    const NavigationRailDestination(
-      icon: Icon(Icons.alt_route_outlined),
-      selectedIcon: Icon(Icons.alt_route),
-      label: Text('Chain'),
-    ),
-    const NavigationRailDestination(
-      icon: Icon(Icons.bolt_outlined),
-      selectedIcon: Icon(Icons.bolt),
-      label: Text('Netlify'),
-    ),
-    if (_showSmsEncoder)
-      const NavigationRailDestination(
-        icon: Icon(Icons.sms_outlined),
-        selectedIcon: Icon(Icons.sms),
-        label: Text('SMS'),
+  List<_NavItem> get _navItems {
+    var idx = 0;
+    return [
+      _NavItem(
+        label: 'Diagnostics',
+        icon: Icons.network_ping_outlined,
+        selectedIcon: Icons.network_ping,
+        index: idx++,
       ),
-    if (_showCdnScan)
-      const NavigationRailDestination(
-        icon: Icon(Icons.speed_outlined),
-        selectedIcon: Icon(Icons.speed),
-        label: Text('CDN Scan'),
+      _NavItem(
+        label: 'Domains',
+        icon: Icons.language_outlined,
+        selectedIcon: Icons.language,
+        index: idx++,
       ),
-    if (_showAbout)
-      const NavigationRailDestination(
-        icon: Icon(Icons.info_outline),
-        selectedIcon: Icon(Icons.info),
-        label: Text('About'),
+      _NavItem(
+        label: 'DNS',
+        icon: Icons.dns_outlined,
+        selectedIcon: Icons.dns,
+        index: idx++,
       ),
-  ];
+      _NavItem(
+        label: 'Hunter',
+        icon: Icons.radar_outlined,
+        selectedIcon: Icons.radar,
+        index: idx++,
+      ),
+      _NavItem(
+        label: 'Edge',
+        icon: Icons.router_outlined,
+        selectedIcon: Icons.router,
+        index: idx++,
+      ),
+      _NavItem(
+        label: 'Akamai',
+        icon: Icons.cloud_sync_outlined,
+        selectedIcon: Icons.cloud_sync,
+        index: idx++,
+      ),
+      _NavItem(
+        label: 'Patt',
+        icon: Icons.tune_outlined,
+        selectedIcon: Icons.tune,
+        children: [
+          _NavItem(
+            label: 'SNI Check',
+            icon: Icons.fingerprint_outlined,
+            selectedIcon: Icons.fingerprint,
+            index: idx++,
+          ),
+        ],
+      ),
+      _NavItem(
+        label: 'VLESS',
+        icon: Icons.vpn_key_outlined,
+        selectedIcon: Icons.vpn_key,
+        index: idx++,
+      ),
+      _NavItem(
+        label: 'Chain',
+        icon: Icons.alt_route_outlined,
+        selectedIcon: Icons.alt_route,
+        index: idx++,
+      ),
+      _NavItem(
+        label: 'Netlify',
+        icon: Icons.bolt_outlined,
+        selectedIcon: Icons.bolt,
+        index: idx++,
+      ),
+      if (_showSmsEncoder)
+        _NavItem(
+          label: 'SMS',
+          icon: Icons.sms_outlined,
+          selectedIcon: Icons.sms,
+          index: idx++,
+        ),
+      if (_showCdnScan)
+        _NavItem(
+          label: 'CDN Scan',
+          icon: Icons.speed_outlined,
+          selectedIcon: Icons.speed,
+          index: idx++,
+        ),
+      if (_showAbout)
+        _NavItem(
+          label: 'About',
+          icon: Icons.info_outline,
+          selectedIcon: Icons.info,
+          index: idx++,
+        ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Use NavigationRail for wider screens (tablet/desktop)
         final isWideScreen = constraints.maxWidth >= 600;
 
         if (isWideScreen) {
@@ -259,25 +281,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-
   Widget _buildDrawer() {
     final colorScheme = Theme.of(context).colorScheme;
-    var index = 0;
-    final items = <_DrawerItem>[
-      _DrawerItem(icon: Icons.network_ping, label: 'Diagnostics', index: index++),
-      _DrawerItem(icon: Icons.language, label: 'Domains', index: index++),
-      _DrawerItem(icon: Icons.dns, label: 'DNS', index: index++),
-      _DrawerItem(icon: Icons.radar, label: 'Hunter', index: index++),
-      _DrawerItem(icon: Icons.router, label: 'Edge', index: index++),
-      _DrawerItem(icon: Icons.cloud_sync, label: 'Akamai', index: index++),
-      _DrawerItem(icon: Icons.fingerprint, label: 'SNI Check', index: index++),
-      _DrawerItem(icon: Icons.vpn_key, label: 'VLESS', index: index++),
-      _DrawerItem(icon: Icons.alt_route, label: 'Chain', index: index++),
-      _DrawerItem(icon: Icons.bolt, label: 'Netlify', index: index++),
-      if (_showSmsEncoder) _DrawerItem(icon: Icons.sms, label: 'SMS', index: index++),
-      if (_showCdnScan) _DrawerItem(icon: Icons.speed, label: 'CDN Scan', index: index++),
-      if (_showAbout) _DrawerItem(icon: Icons.info, label: 'About', index: index++),
-    ];    return Drawer(
+    final navItems = _navItems;
+
+    return Drawer(
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.horizontal(right: Radius.circular(24)),
       ),
@@ -361,87 +369,245 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          // Staggered list items
-          ...List.generate(items.length, (index) {
-            final item = items[index];
-            final isSelected = _selectedIndex == item.index;
+          // Navigation items list
+          ...navItems.map((item) => _buildDrawerNavItem(item, colorScheme)),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
 
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-              child: InkWell(
-                onTap: () {
-                  setState(() => _selectedIndex = item.index);
-                  Navigator.pop(context);
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
+  Widget _buildDrawerNavItem(_NavItem item, ColorScheme colorScheme) {
+    if (item.isParent) {
+      final isExpanded = _expandedSections.contains(item.label);
+      final containsActive = item.containsIndex(_selectedIndex);
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+        child: Column(
+          children: [
+            InkWell(
+              onTap: () {
+                setState(() {
+                  if (isExpanded) {
+                    _expandedSections.remove(item.label);
+                  } else {
+                    _expandedSections.add(item.label);
+                  }
+                });
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: containsActive
+                      ? colorScheme.primaryContainer.withValues(alpha: 0.3)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  border: containsActive
+                      ? Border.all(
+                          color: colorScheme.primary.withValues(alpha: 0.15),
+                          width: 1,
+                        )
+                      : null,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      item.icon,
+                      size: 22,
+                      color: containsActive
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        item.label,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: containsActive ? FontWeight.w600 : FontWeight.w500,
+                          color: containsActive
+                              ? colorScheme.primary
+                              : colorScheme.onSurface.withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      isExpanded
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
+                      size: 20,
+                      color: containsActive
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            AnimatedCrossFade(
+              firstChild: const SizedBox(width: double.infinity),
+              secondChild: Padding(
+                padding: const EdgeInsets.only(left: 16, top: 4),
+                child: Column(
+                  children: item.children!
+                      .map((child) => _buildDrawerChildItem(child, colorScheme))
+                      .toList(),
+                ),
+              ),
+              crossFadeState: isExpanded
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              duration: const Duration(milliseconds: 250),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final isSelected = _selectedIndex == item.index;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+      child: InkWell(
+        onTap: () {
+          if (item.index != null) {
+            setState(() => _selectedIndex = item.index!);
+            Navigator.pop(context);
+          }
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? colorScheme.primaryContainer.withValues(alpha: 0.7)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: isSelected
+                ? Border.all(
+                    color: colorScheme.primary.withValues(alpha: 0.15),
+                    width: 1,
+                  )
+                : null,
+          ),
+          child: Row(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 4,
+                height: isSelected ? 20 : 0,
+                decoration: BoxDecoration(
+                  color: colorScheme.primary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(width: isSelected ? 12 : 0),
+              Icon(
+                isSelected && item.selectedIcon != null ? item.selectedIcon! : item.icon,
+                size: 22,
+                color: isSelected
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  item.label,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                     color: isSelected
-                        ? colorScheme.primaryContainer.withValues(alpha: 0.7)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                    border: isSelected
-                        ? Border.all(
-                            color: colorScheme.primary.withValues(alpha: 0.15),
-                            width: 1,
-                          )
-                        : null,
-                  ),
-                  child: Row(
-                    children: [
-                      // Left Indicator Strip for active item
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 4,
-                        height: isSelected ? 20 : 0,
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      SizedBox(width: isSelected ? 12 : 0),
-
-                      // Icon
-                      Icon(
-                        item.icon,
-                        size: 22,
-                        color: isSelected
-                            ? colorScheme.primary
-                            : colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
-                      ),
-                      const SizedBox(width: 16),
-
-                      // Label
-                      Expanded(
-                        child: Text(
-                          item.label,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                            color: isSelected
-                                ? colorScheme.primary
-                                : colorScheme.onSurface.withValues(alpha: 0.8),
-                          ),
-                        ),
-                      ),
-
-                      // Chevron trailing arrow for active
-                      if (isSelected)
-                        Icon(
-                          Icons.arrow_right_rounded,
-                          size: 20,
-                          color: colorScheme.primary,
-                        ),
-                    ],
+                        ? colorScheme.primary
+                        : colorScheme.onSurface.withValues(alpha: 0.8),
                   ),
                 ),
               ),
-            ).animate().fadeIn(delay: (30 * index).ms, duration: 300.ms).slideX(begin: -0.05, end: 0, curve: Curves.easeOutCubic);
-          }),
-          const SizedBox(height: 12),
-        ],
+              if (isSelected)
+                Icon(
+                  Icons.arrow_right_rounded,
+                  size: 20,
+                  color: colorScheme.primary,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerChildItem(_NavItem child, ColorScheme colorScheme) {
+    final isSelected = _selectedIndex == child.index;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: InkWell(
+        onTap: () {
+          if (child.index != null) {
+            setState(() => _selectedIndex = child.index!);
+            Navigator.pop(context);
+          }
+        },
+        borderRadius: BorderRadius.circular(10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? colorScheme.primaryContainer.withValues(alpha: 0.7)
+                : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(10),
+            border: isSelected
+                ? Border.all(
+                    color: colorScheme.primary.withValues(alpha: 0.2),
+                    width: 1,
+                  )
+                : null,
+          ),
+          child: Row(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 3,
+                height: isSelected ? 16 : 0,
+                decoration: BoxDecoration(
+                  color: colorScheme.primary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(width: isSelected ? 8 : 0),
+              Icon(
+                isSelected && child.selectedIcon != null ? child.selectedIcon! : child.icon,
+                size: 18,
+                color: isSelected
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  child.label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    color: isSelected
+                        ? colorScheme.primary
+                        : colorScheme.onSurface.withValues(alpha: 0.9),
+                  ),
+                ),
+              ),
+              if (isSelected)
+                Icon(
+                  Icons.arrow_right_rounded,
+                  size: 18,
+                  color: colorScheme.primary,
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -449,6 +615,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildDesktopLayout() {
     final colorScheme = Theme.of(context).colorScheme;
     final hasCustomTitleBar = Platform.isLinux || Platform.isWindows;
+    final navItems = _navItems;
 
     return Scaffold(
       body: Column(
@@ -457,61 +624,73 @@ class _HomeScreenState extends State<HomeScreen> {
           Expanded(
             child: Row(
               children: [
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    return SingleChildScrollView(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: constraints.maxHeight,
-                        ),
-                        child: IntrinsicHeight(
-                          child: NavigationRail(
-                            minWidth: 96,
-                            selectedIndex: _selectedIndex,
-                            onDestinationSelected: (index) {
-                              setState(() => _selectedIndex = index);
-                            },
-                            labelType: NavigationRailLabelType.all,
-                            leading: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              child: Column(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: colorScheme.primaryContainer,
-                                      borderRadius: BorderRadius.circular(16),
+                SizedBox(
+                  width: 220,
+                  child: Container(
+                    color: colorScheme.surfaceContainerLow,
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primaryContainer,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.network_check,
+                                  size: 24,
+                                  color: colorScheme.onPrimaryContainer,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Network Checker',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: colorScheme.onSurface,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    child: Icon(
-                                      Icons.network_check,
-                                      size: 28,
-                                      color: colorScheme.onPrimaryContainer,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                                    child: Text(
-                                      'Network\nChecker',
-                                      textAlign: TextAlign.center,
+                                    Text(
+                                      'v$appVersion',
                                       style: TextStyle(
                                         fontSize: 11,
-                                        fontWeight: FontWeight.w600,
+                                        fontWeight: FontWeight.w500,
                                         color: colorScheme.primary,
-                                        height: 1.1,
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                            destinations: _railDestinations,
+                            ],
                           ),
                         ),
-                      ),
-                    );
-                  },
-                ).animate().fadeIn(duration: 400.ms).slideX(begin: -0.2, end: 0),
+                        Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                        ),
+                        Expanded(
+                          child: ListView(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            children: navItems
+                                .map((item) => _buildDesktopNavItem(item, colorScheme))
+                                .toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ).animate().fadeIn(duration: 400.ms).slideX(begin: -0.1, end: 0),
                 VerticalDivider(
                   thickness: 1,
                   width: 1,
@@ -539,12 +718,263 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  Widget _buildDesktopNavItem(_NavItem item, ColorScheme colorScheme) {
+    if (item.isParent) {
+      final isExpanded = _expandedSections.contains(item.label);
+      final containsActive = item.containsIndex(_selectedIndex);
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Column(
+          children: [
+            InkWell(
+              onTap: () {
+                setState(() {
+                  if (isExpanded) {
+                    _expandedSections.remove(item.label);
+                  } else {
+                    _expandedSections.add(item.label);
+                  }
+                });
+              },
+              borderRadius: BorderRadius.circular(10),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: containsActive
+                      ? colorScheme.primaryContainer.withValues(alpha: 0.3)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  border: containsActive
+                      ? Border.all(
+                          color: colorScheme.primary.withValues(alpha: 0.15),
+                          width: 1,
+                        )
+                      : null,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      item.icon,
+                      size: 20,
+                      color: containsActive
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        item.label,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: containsActive ? FontWeight.w600 : FontWeight.w500,
+                          color: containsActive
+                              ? colorScheme.primary
+                              : colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      isExpanded
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
+                      size: 18,
+                      color: containsActive
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            AnimatedCrossFade(
+              firstChild: const SizedBox(width: double.infinity),
+              secondChild: Padding(
+                padding: const EdgeInsets.only(left: 14, top: 2),
+                child: Column(
+                  children: item.children!
+                      .map((child) => _buildDesktopChildItem(child, colorScheme))
+                      .toList(),
+                ),
+              ),
+              crossFadeState: isExpanded
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              duration: const Duration(milliseconds: 200),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final isSelected = _selectedIndex == item.index;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: InkWell(
+        onTap: () {
+          if (item.index != null) {
+            setState(() => _selectedIndex = item.index!);
+          }
+        },
+        borderRadius: BorderRadius.circular(10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? colorScheme.primaryContainer.withValues(alpha: 0.7)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            border: isSelected
+                ? Border.all(
+                    color: colorScheme.primary.withValues(alpha: 0.15),
+                    width: 1,
+                  )
+                : null,
+          ),
+          child: Row(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 3,
+                height: isSelected ? 16 : 0,
+                decoration: BoxDecoration(
+                  color: colorScheme.primary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(width: isSelected ? 8 : 0),
+              Icon(
+                isSelected && item.selectedIcon != null ? item.selectedIcon! : item.icon,
+                size: 20,
+                color: isSelected
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  item.label,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    color: isSelected
+                        ? colorScheme.primary
+                        : colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              if (isSelected)
+                Icon(
+                  Icons.arrow_right_rounded,
+                  size: 18,
+                  color: colorScheme.primary,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopChildItem(_NavItem child, ColorScheme colorScheme) {
+    final isSelected = _selectedIndex == child.index;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: InkWell(
+        onTap: () {
+          if (child.index != null) {
+            setState(() => _selectedIndex = child.index!);
+          }
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? colorScheme.primaryContainer.withValues(alpha: 0.7)
+                : colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
+            borderRadius: BorderRadius.circular(8),
+            border: isSelected
+                ? Border.all(
+                    color: colorScheme.primary.withValues(alpha: 0.2),
+                    width: 1,
+                  )
+                : null,
+          ),
+          child: Row(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 3,
+                height: isSelected ? 14 : 0,
+                decoration: BoxDecoration(
+                  color: colorScheme.primary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(width: isSelected ? 6 : 0),
+              Icon(
+                isSelected && child.selectedIcon != null ? child.selectedIcon! : child.icon,
+                size: 16,
+                color: isSelected
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  child.label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    color: isSelected
+                        ? colorScheme.primary
+                        : colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              if (isSelected)
+                Icon(
+                  Icons.arrow_right_rounded,
+                  size: 16,
+                  color: colorScheme.primary,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _DrawerItem {
-  final IconData icon;
+class _NavItem {
   final String label;
-  final int index;
+  final IconData icon;
+  final IconData? selectedIcon;
+  final int? index;
+  final List<_NavItem>? children;
 
-  _DrawerItem({required this.icon, required this.label, required this.index});
+  const _NavItem({
+    required this.label,
+    required this.icon,
+    this.selectedIcon,
+    this.index,
+    this.children,
+  });
+
+  bool get isParent => children != null && children!.isNotEmpty;
+
+  bool containsIndex(int selectedIndex) {
+    if (index == selectedIndex) return true;
+    if (children != null) {
+      return children!.any((child) => child.containsIndex(selectedIndex));
+    }
+    return false;
+  }
 }

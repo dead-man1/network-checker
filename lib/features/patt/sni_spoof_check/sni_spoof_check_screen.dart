@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/services/sni_spoof_check_service.dart';
+import '../../../core/services/sni_spoof_check_service.dart';
 import 'sni_spoof_check_controller.dart';
 
 class SniSpoofCheckScreen extends StatefulWidget {

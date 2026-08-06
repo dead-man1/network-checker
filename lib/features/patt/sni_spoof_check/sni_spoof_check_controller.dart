@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../../core/services/sni_spoof_check_service.dart';
+import '../../../core/services/sni_spoof_check_service.dart';
 
 class SniSpoofCheckController extends ChangeNotifier {
   // ── Configuration ──────────────────────────────────────────────────────────

@@ -15,7 +15,7 @@ import 'features/cdn_config_scan/cdn_config_scan_controller.dart';
 import 'features/sms_encoder/sms_encoder_controller.dart';
 import 'features/netlify_generator/netlify_generator_controller.dart';
 import 'features/akamai_scan/akamai_scan_controller.dart';
-import 'features/sni_spoof_check/sni_spoof_check_controller.dart';
+import 'features/patt/sni_spoof_check/sni_spoof_check_controller.dart';
 import 'features/internet_diagnostics/internet_diagnostics_controller.dart';
 import 'features/chain/chain_controller.dart';
 
