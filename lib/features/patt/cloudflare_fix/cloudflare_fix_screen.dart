@@ -189,336 +189,7 @@ class _CloudflareFixScreenState extends State<CloudflareFixScreen> {
                 const SizedBox(height: 16),
 
                 // Settings Panel (Collapsible)
-                if (_showSettings)
-                  Card(
-                    elevation: 0,
-                    color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.6),
-                    margin: const EdgeInsets.only(bottom: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(
-                        color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Configuration & TLS Settings',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: colorScheme.primary,
-                                ),
-                              ),
-                              TextButton.icon(
-                                onPressed: () => _syncControllersWithDefaults(controller),
-                                icon: const Icon(Icons.restart_alt_rounded, size: 16),
-                                label: const Text('Reset All Defaults'),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Section 1: TLS & Fingerprint Settings
-                          Text(
-                            'TLS & Fingerprint',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  initialValue: kAvailableFingerprints.contains(controller.fingerprint)
-                                      ? controller.fingerprint
-                                      : 'unsafe',
-                                  decoration: const InputDecoration(
-                                    labelText: 'Fingerprint',
-                                    isDense: true,
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  items: kAvailableFingerprints
-                                      .map((fp) => DropdownMenuItem(
-                                            value: fp,
-                                            child: Text(fp),
-                                          ))
-                                      .toList(),
-                                  onChanged: (val) {
-                                    if (val != null) controller.setFingerprint(val);
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: TextField(
-                                  controller: _alpnController,
-                                  decoration: const InputDecoration(
-                                    labelText: 'ALPN (comma separated)',
-                                    hintText: 'http/1.1',
-                                    isDense: true,
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  onChanged: (v) => controller.setAlpnText(v),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: _cipherSuitesController,
-                                  maxLines: 2,
-                                  style: const TextStyle(
-                                    fontFamily: 'monospace',
-                                    fontSize: 11,
-                                  ),
-                                  decoration: const InputDecoration(
-                                    labelText: 'Cipher Suites',
-                                    isDense: true,
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  onChanged: (v) => controller.setCipherSuites(v),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              IconButton(
-                                icon: const Icon(Icons.restore_rounded),
-                                tooltip: 'Reset Cipher Suites to default',
-                                onPressed: () {
-                                  controller.resetCipherSuites();
-                                  _cipherSuitesController.text = controller.cipherSuites;
-                                },
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 16),
-                          const Divider(),
-                          const SizedBox(height: 8),
-
-                          // Section 2: Finalmask TCP Fragmentation
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Finalmask TCP Fragmentation',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: colorScheme.onSurface,
-                                ),
-                              ),
-                              Switch(
-                                value: controller.enableFinalmask,
-                                onChanged: (v) => controller.setEnableFinalmask(v),
-                              ),
-                            ],
-                          ),
-                          if (controller.enableFinalmask) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              'Packet 1 (tlshello)',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: colorScheme.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller: _frag1PacketsController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Packets',
-                                      isDense: true,
-                                      border: OutlineInputBorder(),
-                                    ),
-                                    onChanged: (v) => controller.setFrag1Packets(v),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: TextField(
-                                    controller: _frag1LengthsController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Lengths',
-                                      hintText: '5,94,1',
-                                      isDense: true,
-                                      border: OutlineInputBorder(),
-                                    ),
-                                    onChanged: (v) => controller.setFrag1Lengths(v),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: TextField(
-                                    controller: _frag1DelaysController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Delays',
-                                      hintText: '0',
-                                      isDense: true,
-                                      border: OutlineInputBorder(),
-                                    ),
-                                    onChanged: (v) => controller.setFrag1Delays(v),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              'Packet 2 (1-1)',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: colorScheme.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller: _frag2PacketsController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Packets',
-                                      isDense: true,
-                                      border: OutlineInputBorder(),
-                                    ),
-                                    onChanged: (v) => controller.setFrag2Packets(v),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: TextField(
-                                    controller: _frag2LengthsController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Lengths',
-                                      hintText: '109,1',
-                                      isDense: true,
-                                      border: OutlineInputBorder(),
-                                    ),
-                                    onChanged: (v) => controller.setFrag2Lengths(v),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: TextField(
-                                    controller: _frag2DelaysController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Delays',
-                                      hintText: '1',
-                                      isDense: true,
-                                      border: OutlineInputBorder(),
-                                    ),
-                                    onChanged: (v) => controller.setFrag2Delays(v),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: TextField(
-                                    controller: _frag2MaxSplitController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'MaxSplit',
-                                      hintText: '355',
-                                      isDense: true,
-                                      border: OutlineInputBorder(),
-                                    ),
-                                    onChanged: (v) => controller.setFrag2MaxSplit(v),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-
-                          const SizedBox(height: 16),
-                          const Divider(),
-                          const SizedBox(height: 8),
-
-                          // Section 3: Ports & DNS
-                          Text(
-                            'Ports & DNS',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: _socksPortController,
-                                  keyboardType: TextInputType.number,
-                                  decoration: const InputDecoration(
-                                    labelText: 'SOCKS Port',
-                                    isDense: true,
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  onChanged: (v) {
-                                    final p = int.tryParse(v);
-                                    if (p != null) controller.setSocksPort(p);
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: TextField(
-                                  controller: _httpPortController,
-                                  keyboardType: TextInputType.number,
-                                  decoration: const InputDecoration(
-                                    labelText: 'HTTP Port',
-                                    isDense: true,
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  onChanged: (v) {
-                                    final p = int.tryParse(v);
-                                    if (p != null) controller.setHttpPort(p);
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: TextField(
-                                  controller: _remarkSuffixController,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Remark Suffix',
-                                    isDense: true,
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  onChanged: (v) => controller.setRemarkSuffix(v),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: _dnsServerController,
-                            decoration: const InputDecoration(
-                              labelText: 'DNS DoH Server URL',
-                              isDense: true,
-                              border: OutlineInputBorder(),
-                            ),
-                            onChanged: (v) => controller.setDnsServer(v),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ).animate().fadeIn(duration: 250.ms),
+                if (_showSettings) _buildSettingsPanel(context, controller),
 
                 // Main Input Card
                 Card(
@@ -536,14 +207,15 @@ class _CloudflareFixScreenState extends State<CloudflareFixScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'VLESS Share Link',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.onSurface,
+                            Expanded(
+                              child: Text(
+                                'VLESS Share Link',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.onSurface,
+                                ),
                               ),
                             ),
                             Wrap(
@@ -777,6 +449,556 @@ class _CloudflareFixScreenState extends State<CloudflareFixScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildSettingsPanel(BuildContext context, CloudflareFixController controller) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Card(
+      elevation: 0,
+      color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.6),
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isCompact = constraints.maxWidth < 550;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header row with title & Reset button
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Configuration & TLS Settings',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => _syncControllersWithDefaults(controller),
+                      icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                      label: const Text('Reset Defaults'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Section 1: TLS & Fingerprint Settings
+                Text(
+                  'TLS & Fingerprint',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                if (isCompact) ...[
+                  DropdownButtonFormField<String>(
+                    initialValue: kAvailableFingerprints.contains(controller.fingerprint)
+                        ? controller.fingerprint
+                        : 'unsafe',
+                    decoration: const InputDecoration(
+                      labelText: 'Fingerprint',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    items: kAvailableFingerprints
+                        .map((fp) => DropdownMenuItem(
+                              value: fp,
+                              child: Text(fp),
+                            ))
+                        .toList(),
+                    onChanged: (val) {
+                      if (val != null) controller.setFingerprint(val);
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _alpnController,
+                    decoration: const InputDecoration(
+                      labelText: 'ALPN (comma separated)',
+                      hintText: 'http/1.1',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (v) => controller.setAlpnText(v),
+                  ),
+                ] else ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: kAvailableFingerprints.contains(controller.fingerprint)
+                              ? controller.fingerprint
+                              : 'unsafe',
+                          decoration: const InputDecoration(
+                            labelText: 'Fingerprint',
+                            isDense: true,
+                            border: OutlineInputBorder(),
+                          ),
+                          items: kAvailableFingerprints
+                              .map((fp) => DropdownMenuItem(
+                                    value: fp,
+                                    child: Text(fp),
+                                  ))
+                              .toList(),
+                          onChanged: (val) {
+                            if (val != null) controller.setFingerprint(val);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _alpnController,
+                          decoration: const InputDecoration(
+                            labelText: 'ALPN (comma separated)',
+                            hintText: 'http/1.1',
+                            isDense: true,
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (v) => controller.setAlpnText(v),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _cipherSuitesController,
+                        maxLines: 2,
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'Cipher Suites',
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (v) => controller.setCipherSuites(v),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.restore_rounded),
+                      tooltip: 'Reset Cipher Suites to default',
+                      onPressed: () {
+                        controller.resetCipherSuites();
+                        _cipherSuitesController.text = controller.cipherSuites;
+                      },
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+
+                // Section 2: Finalmask TCP Fragmentation
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Finalmask TCP Fragmentation',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    Switch(
+                      value: controller.enableFinalmask,
+                      onChanged: (v) => controller.setEnableFinalmask(v),
+                    ),
+                  ],
+                ),
+
+                if (controller.enableFinalmask) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Packet 1 (tlshello)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  if (isCompact) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _frag1PacketsController,
+                            decoration: const InputDecoration(
+                              labelText: 'Packets',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (v) => controller.setFrag1Packets(v),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: _frag1LengthsController,
+                            decoration: const InputDecoration(
+                              labelText: 'Lengths',
+                              hintText: '5,94,1',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (v) => controller.setFrag1Lengths(v),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _frag1DelaysController,
+                            decoration: const InputDecoration(
+                              labelText: 'Delays',
+                              hintText: '0',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (v) => controller.setFrag1Delays(v),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: _frag1MaxSplitController,
+                            decoration: const InputDecoration(
+                              labelText: 'MaxSplit',
+                              hintText: '0',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (v) => controller.setFrag1MaxSplit(v),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _frag1PacketsController,
+                            decoration: const InputDecoration(
+                              labelText: 'Packets',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (v) => controller.setFrag1Packets(v),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: _frag1LengthsController,
+                            decoration: const InputDecoration(
+                              labelText: 'Lengths',
+                              hintText: '5,94,1',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (v) => controller.setFrag1Lengths(v),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: _frag1DelaysController,
+                            decoration: const InputDecoration(
+                              labelText: 'Delays',
+                              hintText: '0',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (v) => controller.setFrag1Delays(v),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+
+                  const SizedBox(height: 10),
+                  Text(
+                    'Packet 2 (1-1)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  if (isCompact) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _frag2PacketsController,
+                            decoration: const InputDecoration(
+                              labelText: 'Packets',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (v) => controller.setFrag2Packets(v),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: _frag2LengthsController,
+                            decoration: const InputDecoration(
+                              labelText: 'Lengths',
+                              hintText: '109,1',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (v) => controller.setFrag2Lengths(v),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _frag2DelaysController,
+                            decoration: const InputDecoration(
+                              labelText: 'Delays',
+                              hintText: '1',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (v) => controller.setFrag2Delays(v),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: _frag2MaxSplitController,
+                            decoration: const InputDecoration(
+                              labelText: 'MaxSplit',
+                              hintText: '355',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (v) => controller.setFrag2MaxSplit(v),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _frag2PacketsController,
+                            decoration: const InputDecoration(
+                              labelText: 'Packets',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (v) => controller.setFrag2Packets(v),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: _frag2LengthsController,
+                            decoration: const InputDecoration(
+                              labelText: 'Lengths',
+                              hintText: '109,1',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (v) => controller.setFrag2Lengths(v),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: _frag2DelaysController,
+                            decoration: const InputDecoration(
+                              labelText: 'Delays',
+                              hintText: '1',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (v) => controller.setFrag2Delays(v),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: _frag2MaxSplitController,
+                            decoration: const InputDecoration(
+                              labelText: 'MaxSplit',
+                              hintText: '355',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (v) => controller.setFrag2MaxSplit(v),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+
+                // Section 3: Ports & DNS
+                Text(
+                  'Ports & DNS',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (isCompact) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _socksPortController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'SOCKS Port',
+                            isDense: true,
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (v) {
+                            final p = int.tryParse(v);
+                            if (p != null) controller.setSocksPort(p);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _httpPortController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'HTTP Port',
+                            isDense: true,
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (v) {
+                            final p = int.tryParse(v);
+                            if (p != null) controller.setHttpPort(p);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _remarkSuffixController,
+                    decoration: const InputDecoration(
+                      labelText: 'Remark Suffix',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (v) => controller.setRemarkSuffix(v),
+                  ),
+                ] else ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _socksPortController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'SOCKS Port',
+                            isDense: true,
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (v) {
+                            final p = int.tryParse(v);
+                            if (p != null) controller.setSocksPort(p);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _httpPortController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'HTTP Port',
+                            isDense: true,
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (v) {
+                            final p = int.tryParse(v);
+                            if (p != null) controller.setHttpPort(p);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _remarkSuffixController,
+                          decoration: const InputDecoration(
+                            labelText: 'Remark Suffix',
+                            isDense: true,
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (v) => controller.setRemarkSuffix(v),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _dnsServerController,
+                  decoration: const InputDecoration(
+                    labelText: 'DNS DoH Server URL',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (v) => controller.setDnsServer(v),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    ).animate().fadeIn(duration: 250.ms);
   }
 
   Widget _buildSummaryChip(
