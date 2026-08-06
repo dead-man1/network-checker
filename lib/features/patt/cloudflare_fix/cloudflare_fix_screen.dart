@@ -116,7 +116,7 @@ class _CloudflareFixScreenState extends State<CloudflareFixScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Supports VLESS+TLS+WS and VLESS+TLS+xHTTP links only. It transforms configurations into Cloudflare-optimized Xray JSON.',
+                          'Supports VLESS+TLS+WS and VLESS+TLS+xHTTP links only. Note: Your client app must be updated to the latest Xray-core version for compatibility.',
                           style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w500,
