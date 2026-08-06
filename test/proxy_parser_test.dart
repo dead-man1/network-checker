@@ -123,11 +123,10 @@ void main() {
       const socksLink = 'socks5://user:pass@2.2.2.2:1080#MiddleSocks';
       const vlessLink = 'vless://uuid@3.3.3.3:443?security=tls#ExitVless';
 
-      final profiles = ProxyParserService.generateChainProfile(
+      final profile = ProxyParserService.generateChainProfile(
         nodeShareLinks: [ssLink, socksLink, vlessLink],
       );
 
-      final profile = profiles.first;
       expect(profile['remarks'], contains('SHADOWSOCKS (Entry) → VLESS (Exit)'));
 
       final outbounds = profile['outbounds'] as List;

@@ -701,7 +701,7 @@ class ProxyParserService {
   }
 
   /// Generate full multi-hop Xray profile JSON structure
-  static List<Map<String, dynamic>> generateChainProfile({
+  static Map<String, dynamic> generateChainProfile({
     required List<String> nodeShareLinks,
     int socksPort = 10808,
     int httpPort = 10809,
@@ -775,7 +775,7 @@ class ProxyParserService {
       },
     };
 
-    return [profile];
+    return profile;
   }
 
   // --- Internal Utilities ---

@@ -93,14 +93,14 @@ class ChainController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final profileList = ProxyParserService.generateChainProfile(
+      final profile = ProxyParserService.generateChainProfile(
         nodeShareLinks: validLinks,
         socksPort: _socksPort,
         httpPort: _httpPort,
       );
 
       const encoder = JsonEncoder.withIndent('  ');
-      _generatedJson = encoder.convert(profileList);
+      _generatedJson = encoder.convert(profile);
       _errorMessage = null;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('FormatException: ', '');

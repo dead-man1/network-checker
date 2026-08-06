@@ -67,9 +67,7 @@ void main() {
       expect(controller.errorMessage, isNull);
       expect(controller.generatedJson, isNotNull);
 
-      final jsonMapList = json.decode(controller.generatedJson!) as List;
-      expect(jsonMapList.length, equals(1));
-      final profile = jsonMapList[0] as Map<String, dynamic>;
+      final profile = json.decode(controller.generatedJson!) as Map<String, dynamic>;
 
       final outbounds = profile['outbounds'] as List;
       expect(outbounds[0]['tag'], equals('hop0'));
