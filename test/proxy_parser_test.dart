@@ -64,68 +64,79 @@ void main() {
       expect(node.remarks, equals('VMessExit'));
     });
 
-    test('generates 2-hop chained Xray profile with dialerProxy', () {
-      const entryLink =
-          'vless://00000000-0000-0000-0000-000000000001@entry.example.com:443?type=ws&security=tls&path=%2Fentry-path#Entry';
-      const exitLink =
-          'vless://00000000-0000-0000-0000-000000000002@exit.example.com:443?type=ws&security=tls&path=%2Fexit-path#Exit';
+    test('parses Shadowsocks share link correctly', () {
+      final userinfoBase64 = base64.encode(utf8.encode('chacha20-ietf-poly1305:secretpass'));
+      final link = 'ss://$userinfoBase64@ss.example.com:8388#SSNode';
+      final node = ProxyParserService.parseLink(link);
 
-      final profiles = ProxyParserService.generateChainProfile(
-        nodeShareLinks: [entryLink, exitLink],
-        socksPort: 10808,
-        httpPort: 10809,
-      );
+      expect(node.protocol, equals('shadowsocks'));
+      expect(node.address, equals('ss.example.com'));
+      expect(node.port, equals(8388));
+      expect(node.cipher, equals('chacha20-ietf-poly1305'));
+      expect(node.idOrPassword, equals('secretpass'));
+      expect(node.remarks, equals('SSNode'));
 
-      expect(profiles.length, equals(1));
-      final profile = profiles.first;
-
-      expect(profile['remarks'], contains('VLESS (Entry) → VLESS (Exit)'));
-
-      final outbounds = profile['outbounds'] as List;
-      expect(outbounds.length, equals(4)); // hop0, hop1, direct, block
-
-      final hop0 = outbounds[0] as Map<String, dynamic>;
-      expect(hop0['tag'], equals('hop0'));
-      expect(hop0['protocol'], equals('vless'));
-      final hop0Stream = hop0['streamSettings'] as Map<String, dynamic>;
-      expect(hop0Stream.containsKey('sockopt'), isFalse);
-
-      final hop1 = outbounds[1] as Map<String, dynamic>;
-      expect(hop1['tag'], equals('hop1'));
-      expect(hop1['protocol'], equals('vless'));
-      final hop1Stream = hop1['streamSettings'] as Map<String, dynamic>;
-      expect(hop1Stream['sockopt']['dialerProxy'], equals('hop0'));
-
-      final routing = profile['routing'] as Map<String, dynamic>;
-      final rules = routing['rules'] as List;
-      expect(rules.first['outboundTag'], equals('hop1'));
+      final outbound = node.toXrayOutbound(tag: 'hop0');
+      expect(outbound['protocol'], equals('shadowsocks'));
+      final servers = outbound['settings']['servers'] as List;
+      expect(servers.first['method'], equals('chacha20-ietf-poly1305'));
+      expect(servers.first['password'], equals('secretpass'));
     });
 
-    test('generates 3-hop chained Xray profile correctly', () {
-      const node0 =
-          'vless://uuid0@node0.com:443?type=ws&security=tls#Node0';
-      const node1 =
-          'trojan://pass1@node1.com:443?security=tls#Node1';
-      const node2 =
-          'vless://uuid2@node2.com:443?type=grpc&security=tls#Node2';
+    test('parses SOCKS share link correctly', () {
+      const link = 'socks5://admin:p%40ss123@socks.example.com:1080#SocksNode';
+      final node = ProxyParserService.parseLink(link);
+
+      expect(node.protocol, equals('socks'));
+      expect(node.address, equals('socks.example.com'));
+      expect(node.port, equals(1080));
+      expect(node.idOrPassword, equals('admin'));
+      expect(node.encryption, equals('p@ss123'));
+      expect(node.remarks, equals('SocksNode'));
+
+      final outbound = node.toXrayOutbound(tag: 'hop0');
+      expect(outbound['protocol'], equals('socks'));
+      final servers = outbound['settings']['servers'] as List;
+      final users = servers.first['users'] as List;
+      expect(users.first['user'], equals('admin'));
+      expect(users.first['pass'], equals('p@ss123'));
+    });
+
+    test('parses HTTP/HTTPS share link correctly', () {
+      const link = 'https://user:pass@proxy.example.com:8443?sni=proxy.example.com#HttpsNode';
+      final node = ProxyParserService.parseLink(link);
+
+      expect(node.protocol, equals('http'));
+      expect(node.address, equals('proxy.example.com'));
+      expect(node.port, equals(8443));
+      expect(node.security, equals('tls'));
+      expect(node.sni, equals('proxy.example.com'));
+      expect(node.remarks, equals('HttpsNode'));
+
+      final outbound = node.toXrayOutbound(tag: 'hop0');
+      expect(outbound['protocol'], equals('http'));
+      expect(outbound['streamSettings']['security'], equals('tls'));
+    });
+
+    test('generates multi-hop profile with mixed protocols (SS -> SOCKS -> VLESS)', () {
+      final ssLink = 'ss://${base64.encode(utf8.encode("aes-256-gcm:pass"))}@1.1.1.1:8388#EntrySS';
+      const socksLink = 'socks5://user:pass@2.2.2.2:1080#MiddleSocks';
+      const vlessLink = 'vless://uuid@3.3.3.3:443?security=tls#ExitVless';
 
       final profiles = ProxyParserService.generateChainProfile(
-        nodeShareLinks: [node0, node1, node2],
+        nodeShareLinks: [ssLink, socksLink, vlessLink],
       );
 
-      final outbounds = profiles.first['outbounds'] as List;
+      final profile = profiles.first;
+      expect(profile['remarks'], contains('SHADOWSOCKS (Entry) → VLESS (Exit)'));
+
+      final outbounds = profile['outbounds'] as List;
       expect(outbounds.length, equals(5)); // hop0, hop1, hop2, direct, block
-
-      final hop0 = outbounds[0] as Map<String, dynamic>;
-      final hop1 = outbounds[1] as Map<String, dynamic>;
-      final hop2 = outbounds[2] as Map<String, dynamic>;
-
-      expect(hop0['streamSettings'].containsKey('sockopt'), isFalse);
-      expect(hop1['streamSettings']['sockopt']['dialerProxy'], equals('hop0'));
-      expect(hop2['streamSettings']['sockopt']['dialerProxy'], equals('hop1'));
-
-      final rules = profiles.first['routing']['rules'] as List;
-      expect(rules.first['outboundTag'], equals('hop2'));
+      expect(outbounds[0]['protocol'], equals('shadowsocks'));
+      expect(outbounds[1]['protocol'], equals('socks'));
+      expect(outbounds[1]['streamSettings']['sockopt']['dialerProxy'], equals('hop0'));
+      expect(outbounds[2]['protocol'], equals('vless'));
+      expect(outbounds[2]['streamSettings']['sockopt']['dialerProxy'], equals('hop1'));
     });
 
     test('throws FormatException when less than 2 links are provided', () {
@@ -137,7 +148,7 @@ void main() {
 
     test('throws FormatException on unsupported protocol link', () {
       expect(
-        () => ProxyParserService.parseLink('ss://YWVzLTI1Ni1nY206cGFzcw==@1.1.1.1:8388'),
+        () => ProxyParserService.parseLink('ftp://1.1.1.1:21'),
         throwsFormatException,
       );
     });

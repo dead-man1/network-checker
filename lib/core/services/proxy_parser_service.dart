@@ -2,7 +2,7 @@ import 'dart:convert';
 
 /// Data model representing parsed proxy details
 class ParsedProxyNode {
-  final String protocol; // 'vless', 'vmess', 'trojan'
+  final String protocol; // 'vless', 'vmess', 'trojan', 'shadowsocks', 'socks', 'http'
   final String address;
   final int port;
   final String? idOrPassword;
@@ -109,6 +109,51 @@ class ParsedProxyNode {
           }
         ],
       };
+    } else if (protocol == 'shadowsocks') {
+      outbound['settings'] = {
+        'servers': [
+          {
+            'address': address,
+            'port': port,
+            'method': (cipher != null && cipher!.isNotEmpty) ? cipher : 'aes-256-gcm',
+            'password': idOrPassword ?? '',
+          }
+        ],
+      };
+    } else if (protocol == 'socks') {
+      final userList = <Map<String, dynamic>>[];
+      if (idOrPassword != null && idOrPassword!.isNotEmpty) {
+        userList.add({
+          'user': idOrPassword,
+          'pass': encryption ?? '',
+        });
+      }
+      outbound['settings'] = {
+        'servers': [
+          {
+            'address': address,
+            'port': port,
+            'users': userList,
+          }
+        ],
+      };
+    } else if (protocol == 'http') {
+      final userList = <Map<String, dynamic>>[];
+      if (idOrPassword != null && idOrPassword!.isNotEmpty) {
+        userList.add({
+          'user': idOrPassword,
+          'pass': encryption ?? '',
+        });
+      }
+      outbound['settings'] = {
+        'servers': [
+          {
+            'address': address,
+            'port': port,
+            'users': userList,
+          }
+        ],
+      };
     } else {
       throw FormatException('Unsupported protocol: $protocol');
     }
@@ -207,7 +252,7 @@ class ParsedProxyNode {
 
 /// Service to parse proxy share links and assemble multi-hop Xray JSON configs
 class ProxyParserService {
-  /// Parses a proxy link (VLESS, VMess, Trojan) into a [ParsedProxyNode]
+  /// Parses a proxy link (VLESS, VMess, Trojan, SS, SOCKS, HTTP) into a [ParsedProxyNode]
   static ParsedProxyNode parseLink(String shareLink) {
     final trimmed = shareLink.trim();
     if (trimmed.isEmpty) {
@@ -220,9 +265,15 @@ class ProxyParserService {
       return _parseVmess(trimmed);
     } else if (trimmed.startsWith('trojan://')) {
       return _parseTrojan(trimmed);
+    } else if (trimmed.startsWith('ss://')) {
+      return _parseShadowsocks(trimmed);
+    } else if (trimmed.startsWith('socks://') || trimmed.startsWith('socks5://')) {
+      return _parseSocks(trimmed);
+    } else if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return _parseHttp(trimmed);
     } else {
       throw const FormatException(
-        'Unsupported proxy link protocol. Only vless://, vmess://, and trojan:// are supported.',
+        'Unsupported proxy link protocol. Supported protocols: vless://, vmess://, trojan://, ss://, socks://, socks5://, http://, https://',
       );
     }
   }
@@ -449,6 +500,203 @@ class ProxyParserService {
       host: host,
       fingerprint: fp,
       remarks: remarks.isNotEmpty ? remarks : 'VMess Node',
+    );
+  }
+
+  /// Parse ss:// (Shadowsocks) link
+  static ParsedProxyNode _parseShadowsocks(String link) {
+    final uriStr = link.substring(5);
+    final fragmentParts = uriStr.split('#');
+    final remarks = fragmentParts.length > 1 ? Uri.decodeComponent(fragmentParts[1]) : 'Shadowsocks Node';
+    final beforeFragment = fragmentParts[0];
+
+    final queryParts = beforeFragment.split('?');
+    final queryString = queryParts.length > 1 ? queryParts[1] : '';
+    final mainPart = queryParts[0];
+
+    String method = '';
+    String password = '';
+    String host = '';
+    int port = 8388;
+
+    if (mainPart.contains('@')) {
+      final atParts = mainPart.split('@');
+      final userinfo = atParts[0];
+      final hostPortStr = atParts[1];
+
+      final hostPort = _parseHostPort(hostPortStr);
+      host = hostPort.host;
+      port = hostPort.port;
+
+      String decodedUserinfo = userinfo;
+      if (!userinfo.contains(':')) {
+        try {
+          decodedUserinfo = utf8.decode(base64.decode(_normalizeBase64(userinfo)));
+        } catch (_) {}
+      }
+
+      final colonIdx = decodedUserinfo.indexOf(':');
+      if (colonIdx != -1) {
+        method = Uri.decodeComponent(decodedUserinfo.substring(0, colonIdx));
+        password = Uri.decodeComponent(decodedUserinfo.substring(colonIdx + 1));
+      } else {
+        password = Uri.decodeComponent(decodedUserinfo);
+      }
+    } else {
+      // Legacy base64 format: ss://BASE64(method:password@host:port)
+      try {
+        final decodedStr = utf8.decode(base64.decode(_normalizeBase64(mainPart)));
+        final atParts = decodedStr.split('@');
+        if (atParts.length == 2) {
+          final userinfo = atParts[0];
+          final hostPortStr = atParts[1];
+          final hostPort = _parseHostPort(hostPortStr);
+          host = hostPort.host;
+          port = hostPort.port;
+
+          final colonIdx = userinfo.indexOf(':');
+          if (colonIdx != -1) {
+            method = Uri.decodeComponent(userinfo.substring(0, colonIdx));
+            password = Uri.decodeComponent(userinfo.substring(colonIdx + 1));
+          } else {
+            password = Uri.decodeComponent(userinfo);
+          }
+        } else {
+          throw const FormatException('Invalid Shadowsocks format');
+        }
+      } catch (e) {
+        throw FormatException('Invalid Shadowsocks format: $e');
+      }
+    }
+
+    final queryParams = _parseQueryString(queryString);
+    final plugin = queryParams['plugin'];
+
+    return ParsedProxyNode(
+      protocol: 'shadowsocks',
+      address: host,
+      port: port,
+      idOrPassword: password,
+      cipher: method.isNotEmpty ? method : 'aes-256-gcm',
+      remarks: remarks.isNotEmpty ? remarks : 'Shadowsocks Node',
+    );
+  }
+
+  /// Parse socks:// or socks5:// link
+  static ParsedProxyNode _parseSocks(String link) {
+    final prefixLen = link.startsWith('socks5://') ? 9 : 8;
+    final uriStr = link.substring(prefixLen);
+    final fragmentParts = uriStr.split('#');
+    final remarks = fragmentParts.length > 1 ? Uri.decodeComponent(fragmentParts[1]) : 'SOCKS Node';
+    final beforeFragment = fragmentParts[0];
+
+    final queryParts = beforeFragment.split('?');
+    final queryString = queryParts.length > 1 ? queryParts[1] : '';
+    final mainPart = queryParts[0];
+
+    String username = '';
+    String password = '';
+    String host = '';
+    int port = 1080;
+
+    if (mainPart.contains('@')) {
+      final atParts = mainPart.split('@');
+      final userinfo = atParts[0];
+      final hostPortStr = atParts[1];
+
+      final hostPort = _parseHostPort(hostPortStr);
+      host = hostPort.host;
+      port = hostPort.port;
+
+      String decodedUserinfo = userinfo;
+      if (!userinfo.contains(':')) {
+        try {
+          decodedUserinfo = utf8.decode(base64.decode(_normalizeBase64(userinfo)));
+        } catch (_) {}
+      }
+
+      final colonIdx = decodedUserinfo.indexOf(':');
+      if (colonIdx != -1) {
+        username = Uri.decodeComponent(decodedUserinfo.substring(0, colonIdx));
+        password = Uri.decodeComponent(decodedUserinfo.substring(colonIdx + 1));
+      } else {
+        username = Uri.decodeComponent(decodedUserinfo);
+      }
+    } else {
+      final hostPort = _parseHostPort(mainPart);
+      host = hostPort.host;
+      port = hostPort.port;
+    }
+
+    return ParsedProxyNode(
+      protocol: 'socks',
+      address: host,
+      port: port,
+      idOrPassword: username,
+      encryption: password,
+      remarks: remarks.isNotEmpty ? remarks : 'SOCKS Node',
+    );
+  }
+
+  /// Parse http:// or https:// link
+  static ParsedProxyNode _parseHttp(String link) {
+    final isHttps = link.startsWith('https://');
+    final prefixLen = isHttps ? 8 : 7;
+    final uriStr = link.substring(prefixLen);
+    final fragmentParts = uriStr.split('#');
+    final remarks = fragmentParts.length > 1 ? Uri.decodeComponent(fragmentParts[1]) : (isHttps ? 'HTTPS Node' : 'HTTP Node');
+    final beforeFragment = fragmentParts[0];
+
+    final queryParts = beforeFragment.split('?');
+    final queryString = queryParts.length > 1 ? queryParts[1] : '';
+    final mainPart = queryParts[0];
+
+    String username = '';
+    String password = '';
+    String host = '';
+    int port = isHttps ? 443 : 80;
+
+    if (mainPart.contains('@')) {
+      final atParts = mainPart.split('@');
+      final userinfo = atParts[0];
+      final hostPortStr = atParts[1];
+
+      final hostPort = _parseHostPort(hostPortStr);
+      host = hostPort.host;
+      port = hostPort.port;
+
+      String decodedUserinfo = userinfo;
+      if (!userinfo.contains(':')) {
+        try {
+          decodedUserinfo = utf8.decode(base64.decode(_normalizeBase64(userinfo)));
+        } catch (_) {}
+      }
+
+      final colonIdx = decodedUserinfo.indexOf(':');
+      if (colonIdx != -1) {
+        username = Uri.decodeComponent(decodedUserinfo.substring(0, colonIdx));
+        password = Uri.decodeComponent(decodedUserinfo.substring(colonIdx + 1));
+      } else {
+        username = Uri.decodeComponent(decodedUserinfo);
+      }
+    } else {
+      final hostPort = _parseHostPort(mainPart);
+      host = hostPort.host;
+      port = hostPort.port;
+    }
+
+    final queryParams = _parseQueryString(queryString);
+    final sni = queryParams['sni'] ?? queryParams['peer'] ?? host;
+
+    return ParsedProxyNode(
+      protocol: 'http',
+      address: host,
+      port: port,
+      idOrPassword: username,
+      encryption: password,
+      security: isHttps ? 'tls' : 'none',
+      sni: isHttps ? sni : null,
+      remarks: remarks.isNotEmpty ? remarks : (isHttps ? 'HTTPS Node' : 'HTTP Node'),
     );
   }
 

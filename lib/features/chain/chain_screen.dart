@@ -119,7 +119,7 @@ class _ChainScreenState extends State<ChainScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Chain VLESS, VMess, or Trojan nodes to route traffic from Local → Entry → Exit → Internet.',
+                    'Chain VLESS, VMess, Trojan, SS, SOCKS, or HTTP nodes from Local → Entry → Exit → Internet.',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -250,9 +250,7 @@ class _ChainScreenState extends State<ChainScreen> {
                       minLines: 1,
                       style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
                       decoration: InputDecoration(
-                        hintText: isEntry
-                            ? 'vless://..., vmess://..., or trojan://...'
-                            : 'vless://..., vmess://..., or trojan://...',
+                        hintText: 'vless://, vmess://, trojan://, ss://, socks://, or http://...',
                         filled: true,
                         fillColor: colorScheme.surface,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
