@@ -19,6 +19,7 @@ import '../chain/chain_screen.dart';
 import '../netlify_generator/netlify_generator_screen.dart';
 import '../akamai_scan/akamai_scan_screen.dart';
 import '../patt/sni_spoof_check/sni_spoof_check_screen.dart';
+import '../patt/cloudflare_fix/cloudflare_fix_screen.dart';
 import '../internet_diagnostics/internet_diagnostics_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -116,6 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
     const EdgeIpCheckerScreen(),
     const AkamaiScanScreen(),
     const SniSpoofCheckScreen(),
+    const CloudflareFixScreen(),
     const VlessConfigModifierScreen(),
     const ChainScreen(),
     const NetlifyGeneratorScreen(),
@@ -174,6 +176,12 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'SNI Check',
             icon: Icons.fingerprint_outlined,
             selectedIcon: Icons.fingerprint,
+            index: idx++,
+          ),
+          _NavItem(
+            label: 'Patt\'s Cloudflare Fix',
+            icon: Icons.auto_fix_high_outlined,
+            selectedIcon: Icons.auto_fix_high,
             index: idx++,
           ),
         ],
