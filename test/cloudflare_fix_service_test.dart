@@ -9,7 +9,7 @@ void main() {
     const xhttpUrl =
         'vless://11111111-1111-1111-1111-111111111111@xhttp.example.com:443?path=%2Fxhpath&security=tls&encryption=none&host=xhttp.example.com&type=xhttp&sni=xhttp.example.com#TestXHTTP';
 
-    test('transforms VLESS+TLS+WS correctly', () {
+    test('transforms VLESS+TLS+WS correctly with default settings', () {
       final result = CloudflareFixService.transformVlessUrl(wsUrl);
 
       expect(result.remarks, 'TestWS-custom');
@@ -17,6 +17,8 @@ void main() {
       expect(result.port, 443);
       expect(result.network, 'WS');
       expect(result.sni, 'example.com');
+      expect(result.fingerprint, 'unsafe');
+      expect(result.alpn, ['http/1.1']);
 
       final jsonMap = result.jsonConfig;
       expect(jsonMap['log']['loglevel'], 'warning');
@@ -46,6 +48,26 @@ void main() {
       final wsSettings = streamSettings['wsSettings'];
       expect(wsSettings['host'], 'example.com');
       expect(wsSettings['path'], '/wspath');
+    });
+
+    test('transforms VLESS+TLS+WS with custom fingerprint and ALPN settings', () {
+      final result = CloudflareFixService.transformVlessUrl(
+        wsUrl,
+        fingerprint: 'chrome',
+        alpn: ['h2', 'http/1.1'],
+        cipherSuites: 'TLS_AES_128_GCM_SHA256',
+        enableFinalmask: true,
+      );
+
+      expect(result.fingerprint, 'chrome');
+      expect(result.alpn, ['h2', 'http/1.1']);
+
+      final proxyOutbound =
+          (result.jsonConfig['outbounds'] as List).firstWhere((o) => o['tag'] == 'proxy');
+      final tlsSettings = proxyOutbound['streamSettings']['tlsSettings'];
+      expect(tlsSettings['fingerprint'], 'chrome');
+      expect(tlsSettings['alpn'], ['h2', 'http/1.1']);
+      expect(tlsSettings['cipherSuites'], 'TLS_AES_128_GCM_SHA256');
     });
 
     test('transforms VLESS+TLS+xHTTP correctly', () {

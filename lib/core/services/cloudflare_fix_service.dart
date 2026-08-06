@@ -9,6 +9,8 @@ class CloudflareFixResult {
   final int port;
   final String network;
   final String sni;
+  final String fingerprint;
+  final List<String> alpn;
 
   CloudflareFixResult({
     required this.jsonConfig,
@@ -18,8 +20,25 @@ class CloudflareFixResult {
     required this.port,
     required this.network,
     required this.sni,
+    required this.fingerprint,
+    required this.alpn,
   });
 }
+
+/// Available fingerprint options for TLS settings
+const List<String> kAvailableFingerprints = [
+  'unsafe',
+  'chrome',
+  'firefox',
+  'android',
+  'randomized',
+  'random',
+  'edge',
+  'safari',
+  '360',
+  'qq',
+  'ios',
+];
 
 /// Service to transform VLESS+TLS+WS and VLESS+TLS+xHTTP links into Cloudflare-optimized Xray JSON configs.
 class CloudflareFixService {
@@ -119,6 +138,18 @@ class CloudflareFixService {
     int httpPort = 10809,
     String dnsServer = defaultDnsServer,
     String remarkSuffix = '-custom',
+    String fingerprint = 'unsafe',
+    List<String> alpn = const ['http/1.1'],
+    String cipherSuites = defaultCipherSuites,
+    bool enableFinalmask = true,
+    String frag1Packets = 'tlshello',
+    List<String> frag1Lengths = const ['5', '94', '1'],
+    List<String> frag1Delays = const ['0'],
+    String frag1MaxSplit = '0',
+    String frag2Packets = '1-1',
+    List<String> frag2Lengths = const ['109', '1'],
+    List<String> frag2Delays = const ['1'],
+    String frag2MaxSplit = '355',
   }) {
     final trimmed = shareLink.trim();
     if (trimmed.isEmpty) {
@@ -196,28 +227,29 @@ class CloudflareFixService {
 
     // Construct streamSettings according to Cloudflare Fix spec
     final Map<String, dynamic> streamSettings = {
-      'finalmask': {
-        'tcp': [
-          {
-            'type': 'fragment',
-            'settings': {
-              'packets': 'tlshello',
-              'lengths': ['5', '94', '1'],
-              'delays': ['0'],
-              'maxSplit': '0',
+      if (enableFinalmask)
+        'finalmask': {
+          'tcp': [
+            {
+              'type': 'fragment',
+              'settings': {
+                'packets': frag1Packets,
+                'lengths': frag1Lengths,
+                'delays': frag1Delays,
+                'maxSplit': frag1MaxSplit,
+              },
             },
-          },
-          {
-            'type': 'fragment',
-            'settings': {
-              'packets': '1-1',
-              'lengths': ['109', '1'],
-              'delays': ['1'],
-              'maxSplit': '355',
+            {
+              'type': 'fragment',
+              'settings': {
+                'packets': frag2Packets,
+                'lengths': frag2Lengths,
+                'delays': frag2Delays,
+                'maxSplit': frag2MaxSplit,
+              },
             },
-          },
-        ],
-      },
+          ],
+        },
       'network': normalizedNetwork,
       'security': 'tls',
       'sockopt': {
@@ -231,9 +263,9 @@ class CloudflareFixService {
       },
       'tlsSettings': {
         'allowInsecure': false,
-        'alpn': ['http/1.1'],
-        'cipherSuites': defaultCipherSuites,
-        'fingerprint': 'unsafe',
+        'alpn': alpn.isNotEmpty ? alpn : ['http/1.1'],
+        'cipherSuites': cipherSuites.isNotEmpty ? cipherSuites : defaultCipherSuites,
+        'fingerprint': fingerprint,
         'serverName': sni,
       },
     };
@@ -350,6 +382,8 @@ class CloudflareFixService {
       port: port,
       network: normalizedNetwork.toUpperCase(),
       sni: sni,
+      fingerprint: fingerprint,
+      alpn: alpn,
     );
   }
 

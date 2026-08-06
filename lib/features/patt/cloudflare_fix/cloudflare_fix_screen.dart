@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/services/cloudflare_fix_service.dart';
 import 'cloudflare_fix_controller.dart';
 
 class CloudflareFixScreen extends StatefulWidget {
@@ -18,6 +19,19 @@ class _CloudflareFixScreenState extends State<CloudflareFixScreen> {
   late TextEditingController _httpPortController;
   late TextEditingController _dnsServerController;
   late TextEditingController _remarkSuffixController;
+  late TextEditingController _alpnController;
+  late TextEditingController _cipherSuitesController;
+
+  late TextEditingController _frag1PacketsController;
+  late TextEditingController _frag1LengthsController;
+  late TextEditingController _frag1DelaysController;
+  late TextEditingController _frag1MaxSplitController;
+
+  late TextEditingController _frag2PacketsController;
+  late TextEditingController _frag2LengthsController;
+  late TextEditingController _frag2DelaysController;
+  late TextEditingController _frag2MaxSplitController;
+
   bool _showSettings = false;
 
   static const String _exampleVlessUrl =
@@ -32,6 +46,18 @@ class _CloudflareFixScreenState extends State<CloudflareFixScreen> {
     _httpPortController = TextEditingController(text: controller.httpPort.toString());
     _dnsServerController = TextEditingController(text: controller.dnsServer);
     _remarkSuffixController = TextEditingController(text: controller.remarkSuffix);
+    _alpnController = TextEditingController(text: controller.alpnText);
+    _cipherSuitesController = TextEditingController(text: controller.cipherSuites);
+
+    _frag1PacketsController = TextEditingController(text: controller.frag1Packets);
+    _frag1LengthsController = TextEditingController(text: controller.frag1Lengths);
+    _frag1DelaysController = TextEditingController(text: controller.frag1Delays);
+    _frag1MaxSplitController = TextEditingController(text: controller.frag1MaxSplit);
+
+    _frag2PacketsController = TextEditingController(text: controller.frag2Packets);
+    _frag2LengthsController = TextEditingController(text: controller.frag2Lengths);
+    _frag2DelaysController = TextEditingController(text: controller.frag2Delays);
+    _frag2MaxSplitController = TextEditingController(text: controller.frag2MaxSplit);
   }
 
   @override
@@ -41,6 +67,18 @@ class _CloudflareFixScreenState extends State<CloudflareFixScreen> {
     _httpPortController.dispose();
     _dnsServerController.dispose();
     _remarkSuffixController.dispose();
+    _alpnController.dispose();
+    _cipherSuitesController.dispose();
+
+    _frag1PacketsController.dispose();
+    _frag1LengthsController.dispose();
+    _frag1DelaysController.dispose();
+    _frag1MaxSplitController.dispose();
+
+    _frag2PacketsController.dispose();
+    _frag2LengthsController.dispose();
+    _frag2DelaysController.dispose();
+    _frag2MaxSplitController.dispose();
     super.dispose();
   }
 
@@ -68,6 +106,26 @@ class _CloudflareFixScreenState extends State<CloudflareFixScreen> {
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  void _syncControllersWithDefaults(CloudflareFixController controller) {
+    controller.resetToDefaults();
+    _socksPortController.text = controller.socksPort.toString();
+    _httpPortController.text = controller.httpPort.toString();
+    _dnsServerController.text = controller.dnsServer;
+    _remarkSuffixController.text = controller.remarkSuffix;
+    _alpnController.text = controller.alpnText;
+    _cipherSuitesController.text = controller.cipherSuites;
+
+    _frag1PacketsController.text = controller.frag1Packets;
+    _frag1LengthsController.text = controller.frag1Lengths;
+    _frag1DelaysController.text = controller.frag1Delays;
+    _frag1MaxSplitController.text = controller.frag1MaxSplit;
+
+    _frag2PacketsController.text = controller.frag2Packets;
+    _frag2LengthsController.text = controller.frag2Lengths;
+    _frag2DelaysController.text = controller.frag2Delays;
+    _frag2MaxSplitController.text = controller.frag2MaxSplit;
   }
 
   @override
@@ -100,7 +158,7 @@ class _CloudflareFixScreenState extends State<CloudflareFixScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Info Banner highlighting supported formats
+                // Info Banner
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
@@ -147,15 +205,259 @@ class _CloudflareFixScreenState extends State<CloudflareFixScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Configuration Options',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.primary,
-                            ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Configuration & TLS Settings',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.primary,
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: () => _syncControllersWithDefaults(controller),
+                                icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                                label: const Text('Reset All Defaults'),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 12),
+
+                          // Section 1: TLS & Fingerprint Settings
+                          Text(
+                            'TLS & Fingerprint',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  initialValue: kAvailableFingerprints.contains(controller.fingerprint)
+                                      ? controller.fingerprint
+                                      : 'unsafe',
+                                  decoration: const InputDecoration(
+                                    labelText: 'Fingerprint',
+                                    isDense: true,
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  items: kAvailableFingerprints
+                                      .map((fp) => DropdownMenuItem(
+                                            value: fp,
+                                            child: Text(fp),
+                                          ))
+                                      .toList(),
+                                  onChanged: (val) {
+                                    if (val != null) controller.setFingerprint(val);
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextField(
+                                  controller: _alpnController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'ALPN (comma separated)',
+                                    hintText: 'http/1.1',
+                                    isDense: true,
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  onChanged: (v) => controller.setAlpnText(v),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _cipherSuitesController,
+                                  maxLines: 2,
+                                  style: const TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontSize: 11,
+                                  ),
+                                  decoration: const InputDecoration(
+                                    labelText: 'Cipher Suites',
+                                    isDense: true,
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  onChanged: (v) => controller.setCipherSuites(v),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.restore_rounded),
+                                tooltip: 'Reset Cipher Suites to default',
+                                onPressed: () {
+                                  controller.resetCipherSuites();
+                                  _cipherSuitesController.text = controller.cipherSuites;
+                                },
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 16),
+                          const Divider(),
+                          const SizedBox(height: 8),
+
+                          // Section 2: Finalmask TCP Fragmentation
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Finalmask TCP Fragmentation',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.onSurface,
+                                ),
+                              ),
+                              Switch(
+                                value: controller.enableFinalmask,
+                                onChanged: (v) => controller.setEnableFinalmask(v),
+                              ),
+                            ],
+                          ),
+                          if (controller.enableFinalmask) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Packet 1 (tlshello)',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _frag1PacketsController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Packets',
+                                      isDense: true,
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    onChanged: (v) => controller.setFrag1Packets(v),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextField(
+                                    controller: _frag1LengthsController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Lengths',
+                                      hintText: '5,94,1',
+                                      isDense: true,
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    onChanged: (v) => controller.setFrag1Lengths(v),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextField(
+                                    controller: _frag1DelaysController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Delays',
+                                      hintText: '0',
+                                      isDense: true,
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    onChanged: (v) => controller.setFrag1Delays(v),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              'Packet 2 (1-1)',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _frag2PacketsController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Packets',
+                                      isDense: true,
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    onChanged: (v) => controller.setFrag2Packets(v),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextField(
+                                    controller: _frag2LengthsController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Lengths',
+                                      hintText: '109,1',
+                                      isDense: true,
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    onChanged: (v) => controller.setFrag2Lengths(v),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextField(
+                                    controller: _frag2DelaysController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Delays',
+                                      hintText: '1',
+                                      isDense: true,
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    onChanged: (v) => controller.setFrag2Delays(v),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextField(
+                                    controller: _frag2MaxSplitController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'MaxSplit',
+                                      hintText: '355',
+                                      isDense: true,
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    onChanged: (v) => controller.setFrag2MaxSplit(v),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+
+                          const SizedBox(height: 16),
+                          const Divider(),
+                          const SizedBox(height: 8),
+
+                          // Section 3: Ports & DNS
+                          Text(
+                            'Ports & DNS',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
                           Row(
                             children: [
                               Expanded(
@@ -163,7 +465,7 @@ class _CloudflareFixScreenState extends State<CloudflareFixScreen> {
                                   controller: _socksPortController,
                                   keyboardType: TextInputType.number,
                                   decoration: const InputDecoration(
-                                    labelText: 'SOCKS Inbound Port',
+                                    labelText: 'SOCKS Port',
                                     isDense: true,
                                     border: OutlineInputBorder(),
                                   ),
@@ -179,7 +481,7 @@ class _CloudflareFixScreenState extends State<CloudflareFixScreen> {
                                   controller: _httpPortController,
                                   keyboardType: TextInputType.number,
                                   decoration: const InputDecoration(
-                                    labelText: 'HTTP Inbound Port',
+                                    labelText: 'HTTP Port',
                                     isDense: true,
                                     border: OutlineInputBorder(),
                                   ),
@@ -187,6 +489,18 @@ class _CloudflareFixScreenState extends State<CloudflareFixScreen> {
                                     final p = int.tryParse(v);
                                     if (p != null) controller.setHttpPort(p);
                                   },
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextField(
+                                  controller: _remarkSuffixController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Remark Suffix',
+                                    isDense: true,
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  onChanged: (v) => controller.setRemarkSuffix(v),
                                 ),
                               ),
                             ],
@@ -200,16 +514,6 @@ class _CloudflareFixScreenState extends State<CloudflareFixScreen> {
                               border: OutlineInputBorder(),
                             ),
                             onChanged: (v) => controller.setDnsServer(v),
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: _remarkSuffixController,
-                            decoration: const InputDecoration(
-                              labelText: 'Remark Suffix',
-                              isDense: true,
-                              border: OutlineInputBorder(),
-                            ),
-                            onChanged: (v) => controller.setRemarkSuffix(v),
                           ),
                         ],
                       ),
@@ -388,9 +692,15 @@ class _CloudflareFixScreenState extends State<CloudflareFixScreen> {
                                 ),
                                 _buildSummaryChip(
                                   context,
-                                  Icons.shield_outlined,
+                                  Icons.fingerprint_rounded,
                                   'Fingerprint',
-                                  'unsafe',
+                                  res.fingerprint,
+                                ),
+                                _buildSummaryChip(
+                                  context,
+                                  Icons.alt_route_rounded,
+                                  'ALPN',
+                                  res.alpn.join(','),
                                 ),
                               ],
                             ),
