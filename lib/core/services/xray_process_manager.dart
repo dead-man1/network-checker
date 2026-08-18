@@ -122,26 +122,111 @@ class XrayProcessManager {
     }
   }
 
-  /// Extract the original outbound address from config
-  String? extractOutboundAddress(Map<String, dynamic> config) {
+  static const _proxyProtocols = {
+    'vless',
+    'vmess',
+    'trojan',
+    'shadowsocks',
+    'socks',
+    'http',
+  };
+
+  /// Find the proxy outbound (tagged "proxy", otherwise first proxy protocol).
+  Map<String, dynamic>? _findProxyOutbound(Map<String, dynamic> config) {
     final outbounds = config['outbounds'] as List<dynamic>?;
     if (outbounds == null || outbounds.isEmpty) return null;
 
-    // Find the proxy outbound (usually the first one or tagged as "proxy")
-    for (final outbound in outbounds) {
-      final map = outbound as Map<String, dynamic>;
-      final protocol = map['protocol'] as String?;
+    Map<String, dynamic>? taggedProxy;
+    Map<String, dynamic>? firstProtocolMatch;
 
-      if (protocol == 'vless' || protocol == 'vmess' || protocol == 'trojan') {
-        final settings = map['settings'] as Map<String, dynamic>?;
-        final vnext = settings?['vnext'] as List<dynamic>?;
-        if (vnext != null && vnext.isNotEmpty) {
-          final server = vnext[0] as Map<String, dynamic>;
-          return server['address'] as String?;
-        }
+    for (final outbound in outbounds) {
+      if (outbound is! Map<String, dynamic>) continue;
+      final tag = outbound['tag'] as String?;
+      final protocol = outbound['protocol'] as String?;
+
+      if (tag == 'proxy') {
+        taggedProxy = outbound;
+      }
+      if (protocol != null &&
+          _proxyProtocols.contains(protocol) &&
+          firstProtocolMatch == null) {
+        firstProtocolMatch = outbound;
       }
     }
+
+    return taggedProxy ?? firstProtocolMatch;
+  }
+
+  /// Read server address from flattened settings, vnext, or servers.
+  String? _readOutboundAddress(Map<String, dynamic> outbound) {
+    final settings = outbound['settings'];
+    if (settings is! Map<String, dynamic>) return null;
+
+    // New Xray flattened format: settings.address
+    final flatAddress = settings['address'];
+    if (flatAddress is String && flatAddress.isNotEmpty) {
+      return flatAddress;
+    }
+
+    // Classic vless/vmess: settings.vnext[0].address
+    final vnext = settings['vnext'];
+    if (vnext is List && vnext.isNotEmpty) {
+      final server = vnext.first;
+      if (server is Map<String, dynamic>) {
+        final address = server['address'];
+        if (address is String && address.isNotEmpty) return address;
+      }
+    }
+
+    // Classic trojan/ss/socks/http: settings.servers[0].address
+    final servers = settings['servers'];
+    if (servers is List && servers.isNotEmpty) {
+      final server = servers.first;
+      if (server is Map<String, dynamic>) {
+        final address = server['address'];
+        if (address is String && address.isNotEmpty) return address;
+      }
+    }
+
     return null;
+  }
+
+  /// Write server address into the same location the config used.
+  bool _writeOutboundAddress(Map<String, dynamic> outbound, String newAddress) {
+    final settings = outbound['settings'];
+    if (settings is! Map<String, dynamic>) return false;
+
+    if (settings['address'] is String) {
+      settings['address'] = newAddress;
+      return true;
+    }
+
+    final vnext = settings['vnext'];
+    if (vnext is List && vnext.isNotEmpty) {
+      final server = vnext.first;
+      if (server is Map<String, dynamic>) {
+        server['address'] = newAddress;
+        return true;
+      }
+    }
+
+    final servers = settings['servers'];
+    if (servers is List && servers.isNotEmpty) {
+      final server = servers.first;
+      if (server is Map<String, dynamic>) {
+        server['address'] = newAddress;
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /// Extract the original outbound address from config
+  String? extractOutboundAddress(Map<String, dynamic> config) {
+    final outbound = _findProxyOutbound(config);
+    if (outbound == null) return null;
+    return _readOutboundAddress(outbound);
   }
 
   /// Extract the inbound port from config
@@ -181,21 +266,10 @@ class XrayProcessManager {
       }
     }
 
-    // Modify outbound address
-    final outbounds = config['outbounds'] as List<dynamic>;
-    for (final outbound in outbounds) {
-      final map = outbound as Map<String, dynamic>;
-      final protocol = map['protocol'] as String?;
-
-      if (protocol == 'vless' || protocol == 'vmess' || protocol == 'trojan') {
-        final settings = map['settings'] as Map<String, dynamic>;
-        final vnext = settings['vnext'] as List<dynamic>;
-        if (vnext.isNotEmpty) {
-          final server = vnext[0] as Map<String, dynamic>;
-          server['address'] = newAddress;
-        }
-        break;
-      }
+    // Modify outbound address in whatever layout this config uses
+    final outbound = _findProxyOutbound(config);
+    if (outbound != null) {
+      _writeOutboundAddress(outbound, newAddress);
     }
 
     return config;
