@@ -272,7 +272,76 @@ class XrayProcessManager {
       _writeOutboundAddress(outbound, newAddress);
     }
 
+    // Client configs often reference custom geo dat files we do not ship
+    // (e.g. ext:geoip-only-cn-private.dat:private). Map those onto the
+    // bundled geoip.dat / geosite.dat so xray can start.
+    _rewriteExternalGeoRefs(config);
+
     return config;
+  }
+
+  /// Rewrite `ext:custom.dat:tag` entries to `geoip:tag` / `geosite:tag`.
+  void _rewriteExternalGeoRefs(Map<String, dynamic> config) {
+    final routing = config['routing'];
+    if (routing is Map<String, dynamic>) {
+      final rules = routing['rules'];
+      if (rules is List) {
+        for (final rule in rules) {
+          if (rule is! Map<String, dynamic>) continue;
+          _rewriteExtGeoList(rule, 'ip', 'geoip');
+          _rewriteExtGeoList(rule, 'source', 'geoip');
+          _rewriteExtGeoList(rule, 'domain', 'geosite');
+        }
+      }
+    }
+
+    final dns = config['dns'];
+    if (dns is Map<String, dynamic>) {
+      final servers = dns['servers'];
+      if (servers is List) {
+        for (final server in servers) {
+          if (server is! Map<String, dynamic>) continue;
+          _rewriteExtGeoList(server, 'domains', 'geosite');
+          _rewriteExtGeoList(server, 'expectedIPs', 'geoip');
+          _rewriteExtGeoList(server, 'unexpectedIPs', 'geoip');
+        }
+      }
+    }
+  }
+
+  void _rewriteExtGeoList(
+    Map<String, dynamic> obj,
+    String key,
+    String builtinPrefix,
+  ) {
+    final list = obj[key];
+    if (list is! List) return;
+    for (var i = 0; i < list.length; i++) {
+      final value = list[i];
+      if (value is! String) continue;
+      final rewritten = _rewriteExtGeoRef(value, builtinPrefix);
+      if (rewritten != null) list[i] = rewritten;
+    }
+  }
+
+  /// Convert `ext:file.dat:tag` into a builtin geoip/geosite selector.
+  String? _rewriteExtGeoRef(String value, String builtinPrefix) {
+    if (!value.startsWith('ext:')) return null;
+    final rest = value.substring(4);
+    final colon = rest.lastIndexOf(':');
+    if (colon <= 0 || colon >= rest.length - 1) return null;
+
+    final file = rest.substring(0, colon).toLowerCase();
+    final tag = rest.substring(colon + 1);
+    if (tag.isEmpty) return null;
+
+    var prefix = builtinPrefix;
+    if (file.contains('geosite') || file.contains('dlc')) {
+      prefix = 'geosite';
+    } else if (file.contains('geoip')) {
+      prefix = 'geoip';
+    }
+    return '$prefix:$tag';
   }
 
   int _allocateRandomPort() {
@@ -336,6 +405,12 @@ class XrayProcessManager {
         xrayPath,
         ['-c', configPath],
         workingDirectory: xrayDir.path,
+        environment: {
+          // Android runs libxray.so from the APK native lib dir, which cannot
+          // hold geoip.dat. Point xray at the writable dir that has the assets.
+          'XRAY_LOCATION_ASSET': xrayDir.path,
+          'xray.location.asset': xrayDir.path,
+        },
       );
 
       if (kDebugMode && Platform.isAndroid) {

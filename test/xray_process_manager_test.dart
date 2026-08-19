@@ -130,5 +130,54 @@ void main() {
 
       expect(vnext[0]['address'], '9.9.9.9');
     });
+
+    test('rewrites ext geo dat refs onto bundled geoip/geosite', () {
+      final config = {
+        'inbounds': [
+          {'protocol': 'socks', 'port': 10808},
+        ],
+        'dns': {
+          'servers': [
+            {
+              'address': '223.5.5.5',
+              'domains': ['ext:geosite-ir.dat:ir'],
+            },
+          ],
+        },
+        'outbounds': [
+          {
+            'tag': 'proxy',
+            'protocol': 'vless',
+            'settings': {
+              'vnext': [
+                {'address': 'example.com', 'port': 443},
+              ],
+            },
+          },
+        ],
+        'routing': {
+          'rules': [
+            {
+              'type': 'field',
+              'ip': ['ext:geoip-only-cn-private.dat:private'],
+              'outboundTag': 'direct',
+            },
+            {
+              'type': 'field',
+              'domain': ['geosite:private', 'ext:custom-geosite.dat:google'],
+              'outboundTag': 'direct',
+            },
+          ],
+        },
+      };
+
+      final modified = manager.createModifiedConfig(config, 20000, '1.2.3.4');
+      final rules = modified['routing']['rules'] as List;
+      final dnsServer = modified['dns']['servers'][0] as Map;
+
+      expect(rules[0]['ip'], ['geoip:private']);
+      expect(rules[1]['domain'], ['geosite:private', 'geosite:google']);
+      expect(dnsServer['domains'], ['geosite:ir']);
+    });
   });
 }
