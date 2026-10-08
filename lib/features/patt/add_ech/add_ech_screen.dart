@@ -70,13 +70,7 @@ class _AddEchScreenState extends State<AddEchScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
-          children: [
-            Icon(Icons.enhanced_encryption_rounded, color: Colors.teal),
-            SizedBox(width: 10),
-            Text('Add ECH'),
-          ],
-        ),
+        title: const Text('Add ECH'),
         actions: [
           IconButton(
             icon: Icon(_showSettings ? Icons.tune : Icons.tune_outlined),

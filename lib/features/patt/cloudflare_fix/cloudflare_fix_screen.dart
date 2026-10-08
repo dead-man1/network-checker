@@ -135,13 +135,7 @@ class _CloudflareFixScreenState extends State<CloudflareFixScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
-          children: [
-            Icon(Icons.auto_fix_high_rounded, color: Colors.amber),
-            SizedBox(width: 10),
-            Text('Patt\'s Cloudflare Fix'),
-          ],
-        ),
+        title: const Text('Patt\'s Cloudflare Fix'),
         actions: [
           IconButton(
             icon: Icon(_showSettings ? Icons.tune : Icons.tune_outlined),
