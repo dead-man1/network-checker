@@ -17,6 +17,7 @@ import '../masque_scout/masque_scout_screen.dart';
 import '../sms_encoder/sms_encoder_screen.dart';
 import '../vless_config_modifier/vless_config_modifier_screen.dart';
 import '../chain/chain_screen.dart';
+import '../load_balancer/load_balancer_screen.dart';
 import '../netlify_generator/netlify_generator_screen.dart';
 import '../akamai_scan/akamai_scan_screen.dart';
 import '../patt/sni_spoof_check/sni_spoof_check_screen.dart';
@@ -122,6 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
     const CloudflareFixScreen(),
     const VlessConfigModifierScreen(),
     const ChainScreen(),
+    const LoadBalancerScreen(),
     const NetlifyGeneratorScreen(),
     if (_showSmsEncoder) const SmsEncoderScreen(),
     if (_showCdnScan) const CdnConfigScanScreen(),
@@ -204,6 +206,12 @@ class _HomeScreenState extends State<HomeScreen> {
         label: 'Chain',
         icon: Icons.alt_route_outlined,
         selectedIcon: Icons.alt_route,
+        index: idx++,
+      ),
+      _NavItem(
+        label: 'Load Balancer',
+        icon: Icons.balance_outlined,
+        selectedIcon: Icons.balance,
         index: idx++,
       ),
       _NavItem(
