@@ -19,6 +19,7 @@ import 'features/patt/sni_spoof_check/sni_spoof_check_controller.dart';
 import 'features/patt/cloudflare_fix/cloudflare_fix_controller.dart';
 import 'features/internet_diagnostics/internet_diagnostics_controller.dart';
 import 'features/chain/chain_controller.dart';
+import 'features/load_balancer/load_balancer_controller.dart';
 import 'features/masque_scout/masque_scout_controller.dart';
 
 class RdnbenetApp extends StatelessWidget {
@@ -35,6 +36,7 @@ class RdnbenetApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MasqueScoutController()),
         ChangeNotifierProvider(create: (_) => VlessConfigModifierController()),
         ChangeNotifierProvider(create: (_) => ChainController()),
+        ChangeNotifierProvider(create: (_) => LoadBalancerController()),
         ChangeNotifierProvider(create: (_) => CdnConfigScanController()),
         ChangeNotifierProvider(create: (_) => SmsEncoderController()),
         ChangeNotifierProvider(create: (_) => NetlifyGeneratorController()),

@@ -19,9 +19,9 @@ void main() {
             'tag': 'proxy',
             'protocol': 'vless',
             'settings': {
-              'address': 'pp.parsaoo.ir',
+              'address': 'pp.parsa.ir',
               'port': 443,
-              'id': '1da0fcb1-28f8-44f4-ae97-7387b90ebda2',
+              'id': '1da0fcb1-28f8-44f4-ae97-7387b90ebba2',
               'encryption': 'none',
             },
           },
@@ -29,7 +29,7 @@ void main() {
         ],
       };
 
-      expect(manager.extractOutboundAddress(config), 'pp.parsaoo.ir');
+      expect(manager.extractOutboundAddress(config), 'pp.parsa.ir');
     });
 
     test('reads classic vnext address', () {
@@ -84,9 +84,9 @@ void main() {
             'tag': 'proxy',
             'protocol': 'vless',
             'settings': {
-              'address': 'pp.parsaoo.ir',
+              'address': 'pp.parsa.ir',
               'port': 443,
-              'id': '1da0fcb1-28f8-44f4-ae97-7387b90ebda2',
+              'id': '1da0fcb1-28f8-44f4-ae97-7387b90ebba2',
             },
           },
         ],
@@ -99,7 +99,7 @@ void main() {
       expect(modified['inbounds'][0]['port'], 20000);
       expect(settings['address'], '1.2.3.4');
       expect(settings.containsKey('vnext'), isFalse);
-      expect(settings['id'], '1da0fcb1-28f8-44f4-ae97-7387b90ebda2');
+      expect(settings['id'], '1da0fcb1-28f8-44f4-ae97-7387b90ebba2');
     });
 
     test('rewrites classic vnext address', () {
