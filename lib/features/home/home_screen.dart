@@ -22,6 +22,7 @@ import '../netlify_generator/netlify_generator_screen.dart';
 import '../akamai_scan/akamai_scan_screen.dart';
 import '../patt/sni_spoof_check/sni_spoof_check_screen.dart';
 import '../patt/cloudflare_fix/cloudflare_fix_screen.dart';
+import '../patt/add_ech/add_ech_screen.dart';
 import '../internet_diagnostics/internet_diagnostics_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -121,6 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
     const AkamaiScanScreen(),
     const SniSpoofCheckScreen(),
     const CloudflareFixScreen(),
+    const AddEchScreen(),
     const VlessConfigModifierScreen(),
     const ChainScreen(),
     const LoadBalancerScreen(),
@@ -192,6 +194,12 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Patt\'s Cloudflare Fix',
             icon: Icons.auto_fix_high_outlined,
             selectedIcon: Icons.auto_fix_high,
+            index: idx++,
+          ),
+          _NavItem(
+            label: 'Add ECH',
+            icon: Icons.enhanced_encryption_outlined,
+            selectedIcon: Icons.enhanced_encryption,
             index: idx++,
           ),
         ],

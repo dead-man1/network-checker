@@ -389,5 +389,134 @@ void main() {
       final routingRules = chainProfile['routing']['rules'] as List;
       expect(routingRules.first['outboundTag'], equals('hop2'));
     });
+
+    test('chains a single entry node with an Exit Load Balancer JSON containing multiple nodes', () {
+      const entryVless = 'vless://00000000-0000-0000-0000-000000000000@entry.example.com:443?type=ws&security=tls#EntryNode';
+
+      const exitLoadBalancerJson = '''
+      {
+        "remarks": "leastping",
+        "observatory": {
+          "enableConcurrency": true,
+          "probeInterval": "2m",
+          "probeUrl": "https://www.google.com/generate_204",
+          "subjectSelector": ["proxy-proxy-"]
+        },
+        "outbounds": [
+          {
+            "tag": "proxy-proxy-1-US-Server",
+            "protocol": "vless",
+            "settings": {
+              "vnext": [{ "address": "us.example.com", "port": 443 }]
+            },
+            "streamSettings": { "network": "ws", "security": "tls" }
+          },
+          {
+            "tag": "proxy-proxy-2-DE-Server",
+            "protocol": "trojan",
+            "settings": {
+              "servers": [{ "address": "de.example.com", "port": 443 }]
+            },
+            "streamSettings": { "network": "tcp", "security": "tls" }
+          },
+          { "tag": "direct", "protocol": "freedom" },
+          { "tag": "block", "protocol": "blackhole" }
+        ],
+        "routing": {
+          "balancers": [
+            {
+              "selector": ["proxy-proxy-"],
+              "strategy": { "type": "leastPing" },
+              "tag": "balancer-main"
+            }
+          ]
+        }
+      }
+      ''';
+
+      final chainProfile = ProxyParserService.generateChainProfile(
+        nodeShareLinks: [entryVless, exitLoadBalancerJson],
+      );
+
+      final outbounds = chainProfile['outbounds'] as List;
+
+      // Hop 0: Entry node
+      final hop0 = outbounds[0] as Map<String, dynamic>;
+      expect(hop0['tag'], equals('hop0'));
+      expect(hop0['protocol'], equals('vless'));
+      expect(hop0['streamSettings']['sockopt']?['dialerProxy'], isNull);
+
+      // Hop 1: Both nodes from Load Balancer must exist, each dialing through hop0
+      final exit1 = outbounds.firstWhere((ob) => ob['tag'] == 'proxy-proxy-1-US-Server');
+      final exit2 = outbounds.firstWhere((ob) => ob['tag'] == 'proxy-proxy-2-DE-Server');
+
+      expect(exit1['protocol'], equals('vless'));
+      expect(exit1['streamSettings']['sockopt']['dialerProxy'], equals('hop0'));
+
+      expect(exit2['protocol'], equals('trojan'));
+      expect(exit2['streamSettings']['sockopt']['dialerProxy'], equals('hop0'));
+
+      // Observatory & Balancer must be configured
+      expect(chainProfile['observatory'], isNotNull);
+      expect(chainProfile['observatory']['probeInterval'], equals('2m'));
+      final balancers = chainProfile['routing']['balancers'] as List;
+      expect(balancers.first['tag'], equals('balancer-main'));
+
+      final rules = chainProfile['routing']['rules'] as List;
+      expect(rules.any((r) => r['balancerTag'] == 'balancer-main'), isTrue);
+      expect(chainProfile['remarks'], contains('Load Balancer (2 Exit Nodes)'));
+    });
+
+    test('chains an Entry Load Balancer JSON with a single exit node', () {
+      const entryLoadBalancerJson = '''
+      {
+        "outbounds": [
+          {
+            "tag": "proxy-proxy-1-EntryA",
+            "protocol": "vless",
+            "settings": {
+              "vnext": [{ "address": "entry1.example.com", "port": 443 }]
+            },
+            "streamSettings": { "network": "ws", "security": "tls" }
+          },
+          {
+            "tag": "proxy-proxy-2-EntryB",
+            "protocol": "vless",
+            "settings": {
+              "vnext": [{ "address": "entry2.example.com", "port": 443 }]
+            },
+            "streamSettings": { "network": "ws", "security": "tls" }
+          }
+        ]
+      }
+      ''';
+
+      const exitNode = 'trojan://secret@exit.example.com:443#FinalExit';
+
+      final chainProfile = ProxyParserService.generateChainProfile(
+        nodeShareLinks: [entryLoadBalancerJson, exitNode],
+      );
+
+      final outbounds = chainProfile['outbounds'] as List;
+
+      // Both entry nodes exist
+      final entryA = outbounds.firstWhere((ob) => ob['tag'] == 'entry-1-EntryA');
+      final entryB = outbounds.firstWhere((ob) => ob['tag'] == 'entry-2-EntryB');
+      expect(entryA['streamSettings']['sockopt']?['dialerProxy'], isNull);
+      expect(entryB['streamSettings']['sockopt']?['dialerProxy'], isNull);
+
+      // Exit node has a path through each entry node
+      final exitPathA = outbounds.firstWhere((ob) => ob['tag'] == 'proxy-proxy-1-entry-1-EntryA');
+      final exitPathB = outbounds.firstWhere((ob) => ob['tag'] == 'proxy-proxy-2-entry-2-EntryB');
+
+      expect(exitPathA['streamSettings']['sockopt']['dialerProxy'], equals('entry-1-EntryA'));
+      expect(exitPathB['streamSettings']['sockopt']['dialerProxy'], equals('entry-2-EntryB'));
+
+      // Balancers & Observatory balance across entry paths
+      expect(chainProfile['observatory'], isNotNull);
+      final balancers = chainProfile['routing']['balancers'] as List;
+      expect(balancers.first['tag'], equals('balancer-main'));
+      expect(chainProfile['remarks'], contains('Load Balancer (2 Entry Nodes)'));
+    });
   });
 }
