@@ -17,6 +17,7 @@ import 'features/netlify_generator/netlify_generator_controller.dart';
 import 'features/akamai_scan/akamai_scan_controller.dart';
 import 'features/patt/sni_spoof_check/sni_spoof_check_controller.dart';
 import 'features/patt/cloudflare_fix/cloudflare_fix_controller.dart';
+import 'features/patt/add_ech/add_ech_controller.dart';
 import 'features/internet_diagnostics/internet_diagnostics_controller.dart';
 import 'features/chain/chain_controller.dart';
 import 'features/load_balancer/load_balancer_controller.dart';
@@ -43,6 +44,7 @@ class RdnbenetApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AkamaiScanController()),
         ChangeNotifierProvider(create: (_) => SniSpoofCheckController()),
         ChangeNotifierProvider(create: (_) => CloudflareFixController()),
+        ChangeNotifierProvider(create: (_) => AddEchController()),
         ChangeNotifierProvider(create: (_) => InternetDiagnosticsController()),
       ],
       child: DynamicColorBuilder(

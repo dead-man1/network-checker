@@ -333,6 +333,27 @@ class ProxyParserService {
     'dns',
   };
 
+  /// Non-proxy tags to ignore when extracting outbounds from full configs
+  static const Set<String> nonProxyTags = {
+    'direct',
+    'block',
+    'dns-out',
+  };
+
+  /// Sanitizes tags or names to clean alphanumeric strings.
+  static String sanitizeTag(String name) {
+    var sanitized = name.trim().replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    sanitized = sanitized.replaceAll(RegExp(r'^_+|_+$'), '');
+    return sanitized;
+  }
+
+  static String _cleanNodeLabel(String remarks) {
+    var clean = sanitizeTag(remarks);
+    clean = clean.replaceAll(RegExp(r'^(proxy[-_])+'), '');
+    clean = clean.replaceAll(RegExp(r'^\d+[-_]'), '');
+    return clean;
+  }
+
   /// Sanitizes relaxed JSON/JSON5 by removing line & block comments and trailing commas.
   static String sanitizeJson(String input) {
     // Pass 1: Strip comments while respecting string literals
@@ -1251,7 +1272,7 @@ class ProxyParserService {
     );
   }
 
-  /// Generate full multi-hop Xray profile JSON structure
+  /// Generate full multi-hop Xray profile JSON structure with full support for Load Balancers
   static Map<String, dynamic> generateChainProfile({
     required List<String> nodeShareLinks,
     int socksPort = 10808,
@@ -1261,40 +1282,251 @@ class ProxyParserService {
       throw const FormatException('At least 2 nodes (Entry and Exit) are required for chaining.');
     }
 
-    final parsedNodes = <ParsedProxyNode>[];
+    final hops = <_ChainHopData>[];
     for (int i = 0; i < nodeShareLinks.length; i++) {
       try {
-        parsedNodes.add(parseLink(nodeShareLinks[i]));
+        hops.add(_parseHopData(nodeShareLinks[i], i));
       } catch (e) {
         throw FormatException('Failed to parse Hop $i: $e');
       }
     }
 
-    final outbounds = <Map<String, dynamic>>[];
+    final hasMultiNode = hops.any((h) => h.nodes.length > 1);
 
-    for (int i = 0; i < parsedNodes.length; i++) {
-      final tag = 'hop$i';
-      final dialerProxyTag = i > 0 ? 'hop${i - 1}' : null;
-      outbounds.add(parsedNodes[i].toXrayOutbound(
-        tag: tag,
-        dialerProxyTag: dialerProxyTag,
-      ));
+    if (!hasMultiNode) {
+      // Classic 1-node-per-hop chain
+      final outbounds = <Map<String, dynamic>>[];
+      for (int i = 0; i < hops.length; i++) {
+        final tag = 'hop$i';
+        final dialerProxyTag = i > 0 ? 'hop${i - 1}' : null;
+        outbounds.add(hops[i].nodes.first.toXrayOutbound(
+          tag: tag,
+          dialerProxyTag: dialerProxyTag,
+        ));
+      }
+
+      outbounds.add({'tag': 'direct', 'protocol': 'freedom', 'settings': {}});
+      outbounds.add({'tag': 'block', 'protocol': 'blackhole', 'settings': {}});
+
+      final finalHopTag = 'hop${hops.length - 1}';
+      final entryProtocol = hops.first.nodes.first.protocol.toUpperCase();
+      final exitProtocol = hops.last.nodes.first.protocol.toUpperCase();
+      final remarks = 'Chained: $entryProtocol (Entry) → $exitProtocol (Exit)';
+
+      return {
+        'remarks': remarks,
+        'log': {'loglevel': 'warning'},
+        'inbounds': [
+          {
+            'tag': 'socks-in',
+            'port': socksPort,
+            'listen': '127.0.0.1',
+            'protocol': 'socks',
+            'settings': {
+              'udp': true,
+              'auth': 'noauth',
+            },
+          },
+          {
+            'tag': 'http-in',
+            'port': httpPort,
+            'listen': '127.0.0.1',
+            'protocol': 'http',
+            'settings': {},
+          },
+        ],
+        'outbounds': outbounds,
+        'routing': {
+          'rules': [
+            {
+              'type': 'field',
+              'outboundTag': finalHopTag,
+              'port': '0-65535',
+            },
+          ],
+        },
+      };
     }
 
-    // Direct & Block outbounds
+    // Advanced Chain with Load Balancer(s)
+    final mergedDns = _mergeHopDns(hops);
+
+    String probeUrl = 'https://www.google.com/generate_204';
+    String probeInterval = '3m';
+    for (final h in hops) {
+      final obs = h.fullConfig?['observatory'] as Map?;
+      if (obs != null) {
+        if (obs['probeUrl'] != null) probeUrl = obs['probeUrl'].toString();
+        if (obs['probeInterval'] != null) probeInterval = obs['probeInterval'].toString();
+      }
+    }
+
+    final outbounds = <Map<String, dynamic>>[];
+    const subjectPrefix = 'proxy-proxy-';
+    const finalBalancerTag = 'balancer-main';
+
+    if (hops.length == 2) {
+      final hop0 = hops[0];
+      final hop1 = hops[1];
+
+      if (hop0.nodes.length == 1 && hop1.nodes.length > 1) {
+        // Case: 1 Entry -> N Exit (Exit Load Balancer)
+        final entryNode = hop0.nodes.first;
+        outbounds.add(entryNode.toXrayOutbound(tag: 'hop0'));
+
+        for (int j = 0; j < hop1.nodes.length; j++) {
+          final exitNode = hop1.nodes[j];
+          final clean = _cleanNodeLabel(exitNode.remarks);
+          final tag = clean.isNotEmpty
+              ? '$subjectPrefix${j + 1}-$clean'
+              : '$subjectPrefix${j + 1}';
+          outbounds.add(exitNode.toXrayOutbound(
+            tag: tag,
+            dialerProxyTag: 'hop0',
+          ));
+        }
+      } else if (hop0.nodes.length > 1 && hop1.nodes.length == 1) {
+        // Case: M Entry (Entry Load Balancer) -> 1 Exit
+        final exitNode = hop1.nodes.first;
+
+        for (int i = 0; i < hop0.nodes.length; i++) {
+          final entryNode = hop0.nodes[i];
+          final clean = _cleanNodeLabel(entryNode.remarks);
+          final entryTag = clean.isNotEmpty
+              ? 'entry-${i + 1}-$clean'
+              : 'entry-${i + 1}';
+          outbounds.add(entryNode.toXrayOutbound(tag: entryTag));
+
+          final exitTag = '$subjectPrefix${i + 1}-$entryTag';
+          outbounds.add(exitNode.toXrayOutbound(
+            tag: exitTag,
+            dialerProxyTag: entryTag,
+          ));
+        }
+      } else {
+        // Case: M Entry (Load Balancer) -> N Exit (Load Balancer)
+        for (int i = 0; i < hop0.nodes.length; i++) {
+          final entryNode = hop0.nodes[i];
+          final clean = _cleanNodeLabel(entryNode.remarks);
+          final entryTag = clean.isNotEmpty
+              ? 'entry-${i + 1}-$clean'
+              : 'entry-${i + 1}';
+          outbounds.add(entryNode.toXrayOutbound(tag: entryTag));
+
+          for (int j = 0; j < hop1.nodes.length; j++) {
+            final exitNode = hop1.nodes[j];
+            final exitClean = _cleanNodeLabel(exitNode.remarks);
+            final exitTag = exitClean.isNotEmpty
+                ? '$subjectPrefix${j + 1}-via-${i + 1}-$exitClean'
+                : '$subjectPrefix${j + 1}-via-${i + 1}';
+            outbounds.add(exitNode.toXrayOutbound(
+              tag: exitTag,
+              dialerProxyTag: entryTag,
+            ));
+          }
+        }
+      }
+    } else {
+      // General K-hop chain (> 2 hops) where some hops are multi-node
+      List<String> previousHopTags = [];
+
+      for (int hIdx = 0; hIdx < hops.length; hIdx++) {
+        final hop = hops[hIdx];
+        final isExit = hIdx == hops.length - 1;
+        final currentTags = <String>[];
+
+        if (hIdx == 0) {
+          for (int nIdx = 0; nIdx < hop.nodes.length; nIdx++) {
+            final node = hop.nodes[nIdx];
+            final clean = _cleanNodeLabel(node.remarks);
+            final tag = hop.nodes.length > 1
+                ? (clean.isNotEmpty ? 'entry-${nIdx + 1}-$clean' : 'entry-${nIdx + 1}')
+                : 'hop0';
+            outbounds.add(node.toXrayOutbound(tag: tag));
+            currentTags.add(tag);
+          }
+        } else if (isExit) {
+          int counter = 1;
+          for (final prevTag in previousHopTags) {
+            for (int nIdx = 0; nIdx < hop.nodes.length; nIdx++) {
+              final node = hop.nodes[nIdx];
+              final clean = _cleanNodeLabel(node.remarks);
+              final tag = '$subjectPrefix$counter-${clean.isNotEmpty ? clean : 'exit'}';
+              outbounds.add(node.toXrayOutbound(
+                tag: tag,
+                dialerProxyTag: prevTag,
+              ));
+              currentTags.add(tag);
+              counter++;
+            }
+          }
+        } else {
+          int counter = 1;
+          for (final prevTag in previousHopTags) {
+            for (int nIdx = 0; nIdx < hop.nodes.length; nIdx++) {
+              final node = hop.nodes[nIdx];
+              final clean = _cleanNodeLabel(node.remarks);
+              final tag = 'hop$hIdx-$counter-${clean.isNotEmpty ? clean : 'node'}';
+              outbounds.add(node.toXrayOutbound(
+                tag: tag,
+                dialerProxyTag: prevTag,
+              ));
+              currentTags.add(tag);
+              counter++;
+            }
+          }
+        }
+
+        previousHopTags = currentTags;
+      }
+    }
+
     outbounds.add({'tag': 'direct', 'protocol': 'freedom', 'settings': {}});
     outbounds.add({'tag': 'block', 'protocol': 'blackhole', 'settings': {}});
 
-    final finalHopTag = 'hop${parsedNodes.length - 1}';
+    final observatory = {
+      'enableConcurrency': true,
+      'probeInterval': probeInterval,
+      'probeUrl': probeUrl,
+      'subjectSelector': [subjectPrefix],
+    };
 
-    // Summary remarks
-    final entryProtocol = parsedNodes.first.protocol.toUpperCase();
-    final exitProtocol = parsedNodes.last.protocol.toUpperCase();
-    final remarks = 'Chained: $entryProtocol (Entry) → $exitProtocol (Exit)';
+    final routing = {
+      'balancers': [
+        {
+          'selector': [subjectPrefix],
+          'strategy': {'type': 'leastPing'},
+          'tag': finalBalancerTag,
+        },
+      ],
+      'domainStrategy': 'AsIs',
+      'rules': [
+        {
+          'balancerTag': finalBalancerTag,
+          'inboundTag': ['dns-module'],
+          'type': 'field',
+        },
+        {
+          'balancerTag': finalBalancerTag,
+          'network': 'tcp,udp',
+          'type': 'field',
+        },
+      ],
+    };
 
-    final profile = <String, dynamic>{
+    final entryDesc = hops.first.nodes.length > 1
+        ? 'Load Balancer (${hops.first.nodes.length} Entry Nodes)'
+        : '${hops.first.nodes.first.protocol.toUpperCase()} (Entry)';
+    final exitDesc = hops.last.nodes.length > 1
+        ? 'Load Balancer (${hops.last.nodes.length} Exit Nodes)'
+        : '${hops.last.nodes.first.protocol.toUpperCase()} (Exit)';
+    final remarks = 'Chained: $entryDesc → $exitDesc';
+
+    return {
       'remarks': remarks,
+      'dns': mergedDns,
       'log': {'loglevel': 'warning'},
+      'observatory': observatory,
       'inbounds': [
         {
           'tag': 'socks-in',
@@ -1304,6 +1536,11 @@ class ProxyParserService {
           'settings': {
             'udp': true,
             'auth': 'noauth',
+          },
+          'sniffing': {
+            'destOverride': ['http', 'tls', 'quic'],
+            'enabled': true,
+            'routeOnly': false,
           },
         },
         {
@@ -1315,18 +1552,120 @@ class ProxyParserService {
         },
       ],
       'outbounds': outbounds,
-      'routing': {
-        'rules': [
-          {
-            'type': 'field',
-            'outboundTag': finalHopTag,
-            'port': '0-65535',
-          },
-        ],
-      },
+      'routing': routing,
     };
+  }
 
-    return profile;
+  static _ChainHopData _parseHopData(String hopStr, int hopIndex) {
+    final trimmed = hopStr.trim();
+    if (trimmed.isEmpty) {
+      throw FormatException('Hop $hopIndex configuration cannot be empty.');
+    }
+
+    if (trimmed.startsWith('{') ||
+        trimmed.startsWith('[') ||
+        trimmed.startsWith('//') ||
+        trimmed.startsWith('/*')) {
+      final sanitized = sanitizeJson(trimmed);
+      final decoded = json.decode(sanitized);
+
+      if (decoded is Map<String, dynamic>) {
+        if (decoded.containsKey('outbounds') && decoded['outbounds'] is List) {
+          final proxyNodes = <ParsedProxyNode>[];
+          for (final item in decoded['outbounds']) {
+            if (item is Map) {
+              final proto = item['protocol']?.toString().toLowerCase() ?? '';
+              final tag = item['tag']?.toString().toLowerCase() ?? '';
+              if (proto.isNotEmpty &&
+                  !nonProxyProtocols.contains(proto) &&
+                  !nonProxyTags.contains(tag)) {
+                proxyNodes.add(parseOutboundMap(Map<String, dynamic>.from(item)));
+              }
+            }
+          }
+          if (proxyNodes.isEmpty) {
+            throw FormatException('Hop $hopIndex JSON contains no proxy outbounds.');
+          }
+          return _ChainHopData(nodes: proxyNodes, fullConfig: decoded);
+        } else if (decoded.containsKey('protocol')) {
+          final node = parseOutboundMap(decoded);
+          return _ChainHopData(nodes: [node]);
+        }
+      } else if (decoded is List) {
+        final proxyNodes = <ParsedProxyNode>[];
+        for (final item in decoded) {
+          if (item is Map) {
+            final proto = item['protocol']?.toString().toLowerCase() ?? '';
+            if (proto.isNotEmpty && !nonProxyProtocols.contains(proto)) {
+              proxyNodes.add(parseOutboundMap(Map<String, dynamic>.from(item)));
+            }
+          }
+        }
+        if (proxyNodes.isNotEmpty) {
+          return _ChainHopData(nodes: proxyNodes);
+        }
+      }
+    }
+
+    final lines = trimmed.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+    if (lines.length > 1 && lines.any((l) => l.contains('://'))) {
+      final nodes = <ParsedProxyNode>[];
+      for (final l in lines) {
+        if (l.contains('://')) {
+          nodes.add(parseLink(l));
+        }
+      }
+      if (nodes.isNotEmpty) {
+        return _ChainHopData(nodes: nodes);
+      }
+    }
+
+    return _ChainHopData(nodes: [parseLink(trimmed)]);
+  }
+
+  static Map<String, dynamic> _mergeHopDns(List<_ChainHopData> hops) {
+    final mergedHosts = <String, dynamic>{};
+    final mergedServers = <String>[];
+
+    for (final h in hops) {
+      final dns = h.fullConfig?['dns'] as Map?;
+      if (dns != null) {
+        final hosts = dns['hosts'] as Map?;
+        if (hosts != null) {
+          for (final entry in hosts.entries) {
+            final domain = entry.key.toString();
+            final ipVal = entry.value;
+            if (!mergedHosts.containsKey(domain)) {
+              if (ipVal is List) {
+                mergedHosts[domain] = List<dynamic>.from(ipVal);
+              } else {
+                mergedHosts[domain] = ipVal;
+              }
+            }
+          }
+        }
+
+        final servers = dns['servers'] as List?;
+        if (servers != null) {
+          for (final s in servers) {
+            final sStr = s.toString();
+            if (!mergedServers.contains(sStr)) {
+              mergedServers.add(sStr);
+            }
+          }
+        }
+      }
+    }
+
+    if (mergedServers.isEmpty) {
+      mergedServers.add('1.1.1.1');
+    }
+
+    return {
+      'hosts': mergedHosts,
+      'servers': mergedServers,
+      'tag': 'dns-module',
+    };
   }
 
   // --- Internal Utilities ---
@@ -1570,4 +1909,14 @@ class _HostPort {
   final String host;
   final int port;
   _HostPort(this.host, this.port);
+}
+
+class _ChainHopData {
+  final List<ParsedProxyNode> nodes;
+  final Map<String, dynamic>? fullConfig;
+
+  _ChainHopData({
+    required this.nodes,
+    this.fullConfig,
+  });
 }
