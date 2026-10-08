@@ -518,5 +518,102 @@ void main() {
       expect(balancers.first['tag'], equals('balancer-main'));
       expect(chainProfile['remarks'], contains('Load Balancer (2 Entry Nodes)'));
     });
+
+    test('merges DNS servers keeping only the primary server and avoids stringified maps', () {
+      const hop1Json = '''
+      {
+        "dns": {
+          "servers": ["https://cloudflare-dns.com/dns-query"]
+        },
+        "outbounds": [
+          {
+            "tag": "proxy-1",
+            "protocol": "vless",
+            "settings": {
+              "vnext": [{ "address": "hop1.example.com", "port": 443 }]
+            }
+          }
+        ]
+      }
+      ''';
+
+      const hop2Json = '''
+      {
+        "dns": {
+          "servers": [
+            {
+              "address": "https://8.8.8.8/dns-query",
+              "tag": "remote-dns"
+            }
+          ]
+        },
+        "outbounds": [
+          {
+            "tag": "proxy-2",
+            "protocol": "trojan",
+            "settings": {
+              "servers": [{ "address": "hop2.example.com", "port": 443 }]
+            }
+          }
+        ]
+      }
+      ''';
+
+      final chainProfile = ProxyParserService.generateChainProfile(
+        nodeShareLinks: [hop1Json, hop2Json],
+      );
+
+      final dns = chainProfile['dns'] as Map<String, dynamic>;
+      final servers = dns['servers'] as List;
+
+      expect(servers.length, equals(1));
+      expect(servers.first, equals('https://cloudflare-dns.com/dns-query'));
+      expect(servers.first, isNot(contains('{')));
+    });
+
+    test('extracts address from map server when first hop has an object dns server', () {
+      const hop1Json = '''
+      {
+        "dns": {
+          "servers": [
+            {
+              "address": "https://8.8.8.8/dns-query",
+              "tag": "remote-dns"
+            }
+          ]
+        },
+        "outbounds": [
+          {
+            "tag": "proxy-1",
+            "protocol": "vless",
+            "settings": {
+              "address": "hop1.example.com",
+              "port": 443,
+              "id": "00000000-0000-0000-0000-000000000000"
+            }
+          }
+        ]
+      }
+      ''';
+
+      const hop2Link = 'trojan://secret@hop2.example.com:443#Hop2';
+
+      final chainProfile = ProxyParserService.generateChainProfile(
+        nodeShareLinks: [hop1Json, hop2Link],
+      );
+
+      final dns = chainProfile['dns'] as Map<String, dynamic>;
+      final servers = dns['servers'] as List;
+
+      expect(servers.length, equals(1));
+      expect(servers.first, equals('https://8.8.8.8/dns-query'));
+      expect(servers.first, isNot(contains('{')));
+
+      // Also verify flat settings were converted to standard vnext
+      final outbounds = chainProfile['outbounds'] as List;
+      final hop0 = outbounds.firstWhere((ob) => ob['tag'] == 'hop0');
+      expect(hop0['settings']['vnext'], isNotNull);
+      expect(hop0['settings']['vnext'][0]['address'], equals('hop1.example.com'));
+    });
   });
 }

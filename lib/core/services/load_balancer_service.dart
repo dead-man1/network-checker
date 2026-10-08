@@ -108,9 +108,20 @@ class LoadBalancerService {
         final servers = dns['servers'];
         if (servers is List) {
           for (final s in servers) {
-            final sStr = s.toString();
-            if (!mergedServers.contains(sStr)) {
-              mergedServers.add(sStr);
+            String? sClean;
+            if (s is String) {
+              final trimmed = s.trim();
+              if (trimmed.isNotEmpty && !trimmed.startsWith('{')) {
+                sClean = trimmed;
+              }
+            } else if (s is Map && s['address'] != null) {
+              final addr = s['address'].toString().trim();
+              if (addr.isNotEmpty) {
+                sClean = addr;
+              }
+            }
+            if (sClean != null && !mergedServers.contains(sClean)) {
+              mergedServers.add(sClean);
             }
           }
         }

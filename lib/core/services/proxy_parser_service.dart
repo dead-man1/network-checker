@@ -585,6 +585,46 @@ class ProxyParserService {
       }
     }
 
+    if (address.isEmpty && settings != null) {
+      address = settings['address']?.toString() ?? '';
+      port = int.tryParse(settings['port']?.toString() ?? '') ?? 443;
+      idOrPassword = settings['id']?.toString() ??
+          settings['password']?.toString() ??
+          idOrPassword;
+      alterId = settings['alterId']?.toString() ?? alterId;
+      cipher = settings['security']?.toString() ??
+          settings['method']?.toString() ??
+          cipher;
+      flow = settings['flow']?.toString() ?? flow;
+      encryption = settings['encryption']?.toString() ?? encryption;
+    }
+
+    final normalizedOutboundMap = Map<String, dynamic>.from(outboundMap);
+    if ((protocol == 'vless' || protocol == 'vmess') &&
+        (settings?['vnext'] == null || (settings!['vnext'] as List).isEmpty) &&
+        address.isNotEmpty) {
+      final user = <String, dynamic>{
+        'id': idOrPassword ?? '',
+        'encryption': (encryption != null && encryption.isNotEmpty) ? encryption : 'none',
+      };
+      if (flow != null && flow.isNotEmpty) {
+        user['flow'] = flow;
+      }
+      if (protocol == 'vmess') {
+        user['alterId'] = int.tryParse(alterId ?? '') ?? 0;
+        user['security'] = (cipher != null && cipher.isNotEmpty) ? cipher : 'auto';
+      }
+      normalizedOutboundMap['settings'] = {
+        'vnext': [
+          {
+            'address': address,
+            'port': port,
+            'users': [user],
+          }
+        ]
+      };
+    }
+
     final streamSettings = outboundMap['streamSettings'] as Map?;
     final network = streamSettings?['network']?.toString() ?? 'tcp';
     final security = streamSettings?['security']?.toString() ?? 'none';
@@ -656,7 +696,7 @@ class ProxyParserService {
       finalmask: finalmask,
       sockopt: sockopt,
       xhttpSettings: xhttp,
-      rawOutbound: outboundMap,
+      rawOutbound: normalizedOutboundMap,
     );
   }
 
@@ -1313,7 +1353,24 @@ class ProxyParserService {
       final exitProtocol = hops.last.nodes.first.protocol.toUpperCase();
       final remarks = 'Chained: $entryProtocol (Entry) → $exitProtocol (Exit)';
 
-      return {
+      final hasHopDns = hops.any((h) => h.fullConfig?['dns'] != null);
+      Map<String, dynamic>? dnsModule;
+      final routingRules = <Map<String, dynamic>>[];
+      if (hasHopDns) {
+        dnsModule = _mergeHopDns(hops);
+        routingRules.add({
+          'type': 'field',
+          'inboundTag': ['dns-module'],
+          'outboundTag': finalHopTag,
+        });
+      }
+      routingRules.add({
+        'type': 'field',
+        'outboundTag': finalHopTag,
+        'port': '0-65535',
+      });
+
+      final result = <String, dynamic>{
         'remarks': remarks,
         'log': {'loglevel': 'warning'},
         'inbounds': [
@@ -1337,15 +1394,15 @@ class ProxyParserService {
         ],
         'outbounds': outbounds,
         'routing': {
-          'rules': [
-            {
-              'type': 'field',
-              'outboundTag': finalHopTag,
-              'port': '0-65535',
-            },
-          ],
+          'rules': routingRules,
         },
       };
+
+      if (dnsModule != null) {
+        result['dns'] = dnsModule;
+      }
+
+      return result;
     }
 
     // Advanced Chain with Load Balancer(s)
@@ -1625,7 +1682,7 @@ class ProxyParserService {
 
   static Map<String, dynamic> _mergeHopDns(List<_ChainHopData> hops) {
     final mergedHosts = <String, dynamic>{};
-    final mergedServers = <String>[];
+    String? primaryServer;
 
     for (final h in hops) {
       final dns = h.fullConfig?['dns'] as Map?;
@@ -1645,25 +1702,34 @@ class ProxyParserService {
           }
         }
 
-        final servers = dns['servers'] as List?;
-        if (servers != null) {
-          for (final s in servers) {
-            final sStr = s.toString();
-            if (!mergedServers.contains(sStr)) {
-              mergedServers.add(sStr);
+        if (primaryServer == null) {
+          final servers = dns['servers'] as List?;
+          if (servers != null && servers.isNotEmpty) {
+            for (final s in servers) {
+              if (s is String) {
+                final trimmed = s.trim();
+                if (trimmed.isNotEmpty && !trimmed.startsWith('{')) {
+                  primaryServer = trimmed;
+                  break;
+                }
+              } else if (s is Map && s['address'] != null) {
+                final addr = s['address'].toString().trim();
+                if (addr.isNotEmpty) {
+                  primaryServer = addr;
+                  break;
+                }
+              }
             }
           }
         }
       }
     }
 
-    if (mergedServers.isEmpty) {
-      mergedServers.add('1.1.1.1');
-    }
+    primaryServer ??= '1.1.1.1';
 
     return {
       'hosts': mergedHosts,
-      'servers': mergedServers,
+      'servers': [primaryServer],
       'tag': 'dns-module',
     };
   }
